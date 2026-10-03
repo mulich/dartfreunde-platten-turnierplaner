@@ -1,0 +1,12 @@
+services:
+  turnierplaner:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "${TOURNAMENT_PORT:-18081}:8000"
+    volumes:
+      - tournaments:/data
+    security_opt:
+      - no-new-privileges:true
+volumes:
+  tournaments:

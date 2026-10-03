@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#101c29"><title>Dartfreunde Platten · Turnierplaner</title>
+<link rel="icon" href="/static/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/static/style.css">
+<script defer src="/static/app.js"></script>
+</head>
+<body>
+<aside class="sidebar">
+<a class="brand" href="#"><span class="brand-icon">◎</span><span>Dartfreunde<span class="brand-place">Platten</span><small>TURNIERPLANER</small></span></a>
+<div class="nav-label">TURNIERZENTRALE</div>
+<nav aria-label="Hauptnavigation"><button class="nav-item selected" data-page="active"><span>◫</span> Turniere <span class="nav-count" id="active-count">0</span></button><button class="nav-item" data-page="archive"><span>◷</span> Archiv <span class="nav-count" id="archive-count">0</span></button></nav>
+</aside>
+<div class="workspace">
+<header class="topbar"><span>TURNIERPLANER</span><span class="today" id="today"></span></header>
+<main id="main" tabindex="-1"></main>
+<footer>DARTFREUNDE PLATTEN <span>Turnierplaner</span></footer>
+</div>
+<dialog id="create-dialog" aria-labelledby="dialog-title">
+<form id="create-form">
+<div class="modal-top"><span class="eyebrow">DARTFREUNDE PLATTEN</span><button type="button" class="icon-button" id="close-dialog" aria-label="Schließen">×</button></div>
+<h2 id="dialog-title">Neues Turnier</h2>
+<label for="tournament-name">Turniername</label><input id="tournament-name" name="name" required maxlength="100" placeholder="z. B. Freitagsturnier" autocomplete="off">
+<label id="shortcut-label">Spieler hinzufügen</label>
+<div class="player-shortcuts" id="player-shortcuts" role="group" aria-labelledby="shortcut-label"></div>
+<p class="field-hint" id="shortcut-status" role="status"></p>
+<label for="player-name" class="sr-only">Neuer Spielername</label>
+<div class="add-player-row"><input id="player-name" maxlength="60" placeholder="Neuer Spielername" autocomplete="off"><button type="button" class="button" id="add-player">＋ Hinzufügen</button></div>
+<div class="selected-heading"><span id="selected-label">Teilnehmer</span><span class="label-note" id="player-count">0 Spieler</span></div>
+<div class="selected-players" id="selected-players" role="group" aria-labelledby="selected-label"></div>
+<p class="field-hint">2–64 Spieler</p>
+<label>Scheiben</label>
+<div class="board-options"><label class="board-option"><input type="radio" name="boards" value="2" checked><strong>2 Scheiben</strong><span><i class="dot red"></i> Rot <i class="dot blue"></i> Blau</span></label><label class="board-option"><input type="radio" name="boards" value="3"><strong>3 Scheiben</strong><span><i class="dot red"></i><i class="dot blue"></i><i class="dot black"></i> Rot, Blau & Schwarz</span></label></div>
+<div class="plan-summary" id="plan-summary">Mindestens zwei Spieler auswählen.</div>
+<p class="form-error" id="create-error" role="alert"></p><button class="button primary full" type="submit" id="create-submit">Spielplan erstellen <span>→</span></button>
+</form></dialog>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body></html>

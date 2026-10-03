@@ -1,0 +1,1419 @@
+[
+  {
+    "name": "Dartturnier · 14.06.2026 · 17:51",
+    "created_at": "2026-06-14T15:51:00+00:00",
+    "source_file": "Dartturnier 2026 06 14 17-51.xlsx",
+    "source_sha256": "93cff3bed39ba2953256b75b17d2ae2f1ac334f13b375131ce1e1c94d905da7f",
+    "source_notes": [],
+    "boards": 2,
+    "players": [
+      "Muli",
+      "Swobi",
+      "Neidi",
+      "Rote",
+      "Bruce"
+    ],
+    "matches": [
+      {
+        "number": 1,
+        "round": 1,
+        "wave": 1,
+        "board": "Rot",
+        "player1": "Bruce",
+        "player2": "Muli",
+        "score1": null,
+        "score2": null,
+        "source_row": 2
+      },
+      {
+        "number": 2,
+        "round": 1,
+        "wave": 1,
+        "board": "Blau",
+        "player1": "Neidi",
+        "player2": "Rote",
+        "score1": null,
+        "score2": null,
+        "source_row": 3
+      },
+      {
+        "number": 3,
+        "round": 2,
+        "wave": 2,
+        "board": "Rot",
+        "player1": "Swobi",
+        "player2": "Neidi",
+        "score1": null,
+        "score2": null,
+        "source_row": 5
+      },
+      {
+        "number": 4,
+        "round": 2,
+        "wave": 2,
+        "board": "Blau",
+        "player1": "Muli",
+        "player2": "Rote",
+        "score1": null,
+        "score2": null,
+        "source_row": 6
+      },
+      {
+        "number": 5,
+        "round": 3,
+        "wave": 3,
+        "board": "Rot",
+        "player1": "Neidi",
+        "player2": "Muli",
+        "score1": null,
+        "score2": null,
+        "source_row": 8
+      },
+      {
+        "number": 6,
+        "round": 3,
+        "wave": 3,
+        "board": "Blau",
+        "player1": "Bruce",
+        "player2": "Swobi",
+        "score1": null,
+        "score2": null,
+        "source_row": 9
+      },
+      {
+        "number": 7,
+        "round": 4,
+        "wave": 4,
+        "board": "Rot",
+        "player1": "Rote",
+        "player2": "Bruce",
+        "score1": null,
+        "score2": null,
+        "source_row": 11
+      },
+      {
+        "number": 8,
+        "round": 4,
+        "wave": 4,
+        "board": "Blau",
+        "player1": "Muli",
+        "player2": "Swobi",
+        "score1": null,
+        "score2": null,
+        "source_row": 12
+      },
+      {
+        "number": 9,
+        "round": 5,
+        "wave": 5,
+        "board": "Rot",
+        "player1": "Swobi",
+        "player2": "Rote",
+        "score1": null,
+        "score2": null,
+        "source_row": 14
+      },
+      {
+        "number": 10,
+        "round": 5,
+        "wave": 5,
+        "board": "Blau",
+        "player1": "Bruce",
+        "player2": "Neidi",
+        "score1": null,
+        "score2": null,
+        "source_row": 15
+      }
+    ]
+  },
+  {
+    "name": "Dartturnier · 14.06.2026 · 18:39",
+    "created_at": "2026-06-14T16:39:00+00:00",
+    "source_file": "Dartturnier 2026 06 14 18-39.xlsx",
+    "source_sha256": "ba63355e59b879f9a203015a432668d04df2a6458ef912308698c050ee8fd59c",
+    "source_notes": [],
+    "boards": 2,
+    "players": [
+      "Muli",
+      "Rote",
+      "Swobi",
+      "Neidi",
+      "Bruce"
+    ],
+    "matches": [
+      {
+        "number": 1,
+        "round": 1,
+        "wave": 1,
+        "board": "Rot",
+        "player1": "Neidi",
+        "player2": "Swobi",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 2
+      },
+      {
+        "number": 2,
+        "round": 1,
+        "wave": 1,
+        "board": "Blau",
+        "player1": "Bruce",
+        "player2": "Muli",
+        "score1": 1,
+        "score2": 0,
+        "source_row": 3
+      },
+      {
+        "number": 3,
+        "round": 2,
+        "wave": 2,
+        "board": "Rot",
+        "player1": "Muli",
+        "player2": "Swobi",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 5
+      },
+      {
+        "number": 4,
+        "round": 2,
+        "wave": 2,
+        "board": "Blau",
+        "player1": "Rote",
+        "player2": "Neidi",
+        "score1": 1,
+        "score2": 0,
+        "source_row": 6
+      },
+      {
+        "number": 5,
+        "round": 3,
+        "wave": 3,
+        "board": "Rot",
+        "player1": "Bruce",
+        "player2": "Rote",
+        "score1": null,
+        "score2": null,
+        "source_row": 8
+      },
+      {
+        "number": 6,
+        "round": 3,
+        "wave": 3,
+        "board": "Blau",
+        "player1": "Neidi",
+        "player2": "Muli",
+        "score1": null,
+        "score2": null,
+        "source_row": 9
+      },
+      {
+        "number": 7,
+        "round": 4,
+        "wave": 4,
+        "board": "Rot",
+        "player1": "Muli",
+        "player2": "Rote",
+        "score1": null,
+        "score2": null,
+        "source_row": 11
+      },
+      {
+        "number": 8,
+        "round": 4,
+        "wave": 4,
+        "board": "Blau",
+        "player1": "Swobi",
+        "player2": "Bruce",
+        "score1": null,
+        "score2": null,
+        "source_row": 12
+      },
+      {
+        "number": 9,
+        "round": 5,
+        "wave": 5,
+        "board": "Rot",
+        "player1": "Bruce",
+        "player2": "Neidi",
+        "score1": null,
+        "score2": null,
+        "source_row": 14
+      },
+      {
+        "number": 10,
+        "round": 5,
+        "wave": 5,
+        "board": "Blau",
+        "player1": "Rote",
+        "player2": "Swobi",
+        "score1": null,
+        "score2": null,
+        "source_row": 15
+      }
+    ]
+  },
+  {
+    "name": "Dartturnier · 02.07.2026 · 18:30",
+    "created_at": "2026-07-02T16:30:00+00:00",
+    "source_file": "Dartturnier 2026 07 02 18-30.xlsx",
+    "source_sha256": "3fdb1d92ce915d49c3d3a79178c5422a238cccb6f61819fe782ec34bc069b287",
+    "source_notes": [],
+    "boards": 2,
+    "players": [
+      "Ly",
+      "Swobi",
+      "Muli",
+      "Bruce",
+      "Schlatho"
+    ],
+    "matches": [
+      {
+        "number": 1,
+        "round": 1,
+        "wave": 1,
+        "board": "Rot",
+        "player1": "Ly",
+        "player2": "Schlatho",
+        "score1": 1,
+        "score2": 0,
+        "source_row": 2
+      },
+      {
+        "number": 2,
+        "round": 1,
+        "wave": 1,
+        "board": "Blau",
+        "player1": "Muli",
+        "player2": "Bruce",
+        "score1": 1,
+        "score2": 0,
+        "source_row": 3
+      },
+      {
+        "number": 3,
+        "round": 2,
+        "wave": 2,
+        "board": "Rot",
+        "player1": "Bruce",
+        "player2": "Ly",
+        "score1": 1,
+        "score2": 0,
+        "source_row": 5
+      },
+      {
+        "number": 4,
+        "round": 2,
+        "wave": 2,
+        "board": "Blau",
+        "player1": "Swobi",
+        "player2": "Muli",
+        "score1": 1,
+        "score2": 0,
+        "source_row": 6
+      },
+      {
+        "number": 5,
+        "round": 3,
+        "wave": 3,
+        "board": "Rot",
+        "player1": "Ly",
+        "player2": "Muli",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 8
+      },
+      {
+        "number": 6,
+        "round": 3,
+        "wave": 3,
+        "board": "Blau",
+        "player1": "Schlatho",
+        "player2": "Swobi",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 9
+      },
+      {
+        "number": 7,
+        "round": 4,
+        "wave": 4,
+        "board": "Rot",
+        "player1": "Bruce",
+        "player2": "Schlatho",
+        "score1": 1,
+        "score2": 0,
+        "source_row": 11
+      },
+      {
+        "number": 8,
+        "round": 4,
+        "wave": 4,
+        "board": "Blau",
+        "player1": "Swobi",
+        "player2": "Ly",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 12
+      },
+      {
+        "number": 9,
+        "round": 5,
+        "wave": 5,
+        "board": "Rot",
+        "player1": "Swobi",
+        "player2": "Bruce",
+        "score1": 1,
+        "score2": 0,
+        "source_row": 14
+      },
+      {
+        "number": 10,
+        "round": 5,
+        "wave": 5,
+        "board": "Blau",
+        "player1": "Schlatho",
+        "player2": "Muli",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 15
+      }
+    ]
+  },
+  {
+    "name": "Dartturnier · 02.07.2026 · 19:18",
+    "created_at": "2026-07-02T17:18:00+00:00",
+    "source_file": "Dartturnier 2026 07 02 19-18.xlsx",
+    "source_sha256": "40c00fa4619ef2b34282d9a61b6d28c70449bda00d974c34ddef1f7aaa2de872",
+    "source_notes": [],
+    "boards": 2,
+    "players": [
+      "Ly",
+      "Bruce",
+      "Swobi",
+      "Muli",
+      "Schlatho"
+    ],
+    "matches": [
+      {
+        "number": 1,
+        "round": 1,
+        "wave": 1,
+        "board": "Rot",
+        "player1": "Schlatho",
+        "player2": "Muli",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 2
+      },
+      {
+        "number": 2,
+        "round": 1,
+        "wave": 1,
+        "board": "Blau",
+        "player1": "Swobi",
+        "player2": "Ly",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 3
+      },
+      {
+        "number": 3,
+        "round": 2,
+        "wave": 2,
+        "board": "Rot",
+        "player1": "Bruce",
+        "player2": "Ly",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 5
+      },
+      {
+        "number": 4,
+        "round": 2,
+        "wave": 2,
+        "board": "Blau",
+        "player1": "Schlatho",
+        "player2": "Swobi",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 6
+      },
+      {
+        "number": 5,
+        "round": 3,
+        "wave": 3,
+        "board": "Rot",
+        "player1": "Ly",
+        "player2": "Schlatho",
+        "score1": 1,
+        "score2": 0,
+        "source_row": 8
+      },
+      {
+        "number": 6,
+        "round": 3,
+        "wave": 3,
+        "board": "Blau",
+        "player1": "Muli",
+        "player2": "Bruce",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 9
+      },
+      {
+        "number": 7,
+        "round": 4,
+        "wave": 4,
+        "board": "Rot",
+        "player1": "Swobi",
+        "player2": "Muli",
+        "score1": 1,
+        "score2": 0,
+        "source_row": 11
+      },
+      {
+        "number": 8,
+        "round": 4,
+        "wave": 4,
+        "board": "Blau",
+        "player1": "Bruce",
+        "player2": "Schlatho",
+        "score1": 1,
+        "score2": 0,
+        "source_row": 12
+      },
+      {
+        "number": 9,
+        "round": 5,
+        "wave": 5,
+        "board": "Rot",
+        "player1": "Bruce",
+        "player2": "Swobi",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 14
+      },
+      {
+        "number": 10,
+        "round": 5,
+        "wave": 5,
+        "board": "Blau",
+        "player1": "Muli",
+        "player2": "Ly",
+        "score1": 1,
+        "score2": 0,
+        "source_row": 15
+      }
+    ]
+  },
+  {
+    "name": "Dartturnier · 09.07.2026 · 18:22",
+    "created_at": "2026-07-09T16:22:00+00:00",
+    "source_file": "Dartturnier 2026 07 09 18-22.xlsx",
+    "source_sha256": "54f288338a284658d4a4ba1a79a0aa5b5cc7db43a84695745fc190ad551508dc",
+    "source_notes": [
+      "Spiel 10, Schlatho gegen Swobi: Excel-Zelle G14 von −1 auf 0 korrigiert (auf ausdrücklichen Wunsch beim Import). Originalergebnis: −1:1; importiert: 0:1."
+    ],
+    "boards": 3,
+    "players": [
+      "Muli",
+      "Schlatho",
+      "Swobi",
+      "Rote",
+      "Ly",
+      "Bruce",
+      "Michel"
+    ],
+    "matches": [
+      {
+        "number": 1,
+        "round": 1,
+        "wave": 1,
+        "board": "Rot",
+        "player1": "Ly",
+        "player2": "Schlatho",
+        "score1": 1,
+        "score2": 0,
+        "source_row": 2
+      },
+      {
+        "number": 2,
+        "round": 1,
+        "wave": 1,
+        "board": "Blau",
+        "player1": "Swobi",
+        "player2": "Bruce",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 3
+      },
+      {
+        "number": 3,
+        "round": 1,
+        "wave": 1,
+        "board": "Schwarz",
+        "player1": "Michel",
+        "player2": "Muli",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 4
+      },
+      {
+        "number": 4,
+        "round": 2,
+        "wave": 2,
+        "board": "Rot",
+        "player1": "Muli",
+        "player2": "Ly",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 6
+      },
+      {
+        "number": 5,
+        "round": 2,
+        "wave": 2,
+        "board": "Blau",
+        "player1": "Schlatho",
+        "player2": "Rote",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 7
+      },
+      {
+        "number": 6,
+        "round": 2,
+        "wave": 2,
+        "board": "Schwarz",
+        "player1": "Swobi",
+        "player2": "Michel",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 8
+      },
+      {
+        "number": 7,
+        "round": 3,
+        "wave": 3,
+        "board": "Rot",
+        "player1": "Bruce",
+        "player2": "Rote",
+        "score1": 1,
+        "score2": 0,
+        "source_row": 10
+      },
+      {
+        "number": 8,
+        "round": 3,
+        "wave": 3,
+        "board": "Blau",
+        "player1": "Ly",
+        "player2": "Swobi",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 11
+      },
+      {
+        "number": 9,
+        "round": 3,
+        "wave": 3,
+        "board": "Schwarz",
+        "player1": "Muli",
+        "player2": "Schlatho",
+        "score1": 1,
+        "score2": 0,
+        "source_row": 12
+      },
+      {
+        "number": 10,
+        "round": 4,
+        "wave": 4,
+        "board": "Rot",
+        "player1": "Schlatho",
+        "player2": "Swobi",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 14
+      },
+      {
+        "number": 11,
+        "round": 4,
+        "wave": 4,
+        "board": "Blau",
+        "player1": "Rote",
+        "player2": "Muli",
+        "score1": 1,
+        "score2": 0,
+        "source_row": 15
+      },
+      {
+        "number": 12,
+        "round": 4,
+        "wave": 4,
+        "board": "Schwarz",
+        "player1": "Michel",
+        "player2": "Bruce",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 16
+      },
+      {
+        "number": 13,
+        "round": 5,
+        "wave": 5,
+        "board": "Rot",
+        "player1": "Rote",
+        "player2": "Michel",
+        "score1": 1,
+        "score2": 0,
+        "source_row": 18
+      },
+      {
+        "number": 14,
+        "round": 5,
+        "wave": 5,
+        "board": "Blau",
+        "player1": "Bruce",
+        "player2": "Ly",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 19
+      },
+      {
+        "number": 15,
+        "round": 5,
+        "wave": 5,
+        "board": "Schwarz",
+        "player1": "Swobi",
+        "player2": "Muli",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 20
+      },
+      {
+        "number": 16,
+        "round": 6,
+        "wave": 6,
+        "board": "Rot",
+        "player1": "Michel",
+        "player2": "Ly",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 22
+      },
+      {
+        "number": 17,
+        "round": 6,
+        "wave": 6,
+        "board": "Blau",
+        "player1": "Rote",
+        "player2": "Swobi",
+        "score1": 1,
+        "score2": 0,
+        "source_row": 23
+      },
+      {
+        "number": 18,
+        "round": 6,
+        "wave": 6,
+        "board": "Schwarz",
+        "player1": "Bruce",
+        "player2": "Schlatho",
+        "score1": 1,
+        "score2": 0,
+        "source_row": 24
+      },
+      {
+        "number": 19,
+        "round": 7,
+        "wave": 7,
+        "board": "Rot",
+        "player1": "Muli",
+        "player2": "Bruce",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 26
+      },
+      {
+        "number": 20,
+        "round": 7,
+        "wave": 7,
+        "board": "Blau",
+        "player1": "Schlatho",
+        "player2": "Michel",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 27
+      },
+      {
+        "number": 21,
+        "round": 7,
+        "wave": 7,
+        "board": "Schwarz",
+        "player1": "Ly",
+        "player2": "Rote",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 28
+      }
+    ]
+  },
+  {
+    "name": "Dartturnier · 09.07.2026 · 19:19",
+    "created_at": "2026-07-09T17:19:00+00:00",
+    "source_file": "Dartturnier 2026 07 09 19-19.xlsx",
+    "source_sha256": "ef8dfb0e5f4c7b2e8740189d69ff7cf7567c0478e51bc20f7635006696e10bf5",
+    "source_notes": [],
+    "boards": 3,
+    "players": [
+      "Ly",
+      "Muli",
+      "Bruce",
+      "Michel",
+      "Swobi",
+      "Rote"
+    ],
+    "matches": [
+      {
+        "number": 1,
+        "round": 1,
+        "wave": 1,
+        "board": "Rot",
+        "player1": "Bruce",
+        "player2": "Michel",
+        "score1": null,
+        "score2": null,
+        "source_row": 2
+      },
+      {
+        "number": 2,
+        "round": 1,
+        "wave": 1,
+        "board": "Blau",
+        "player1": "Muli",
+        "player2": "Swobi",
+        "score1": null,
+        "score2": null,
+        "source_row": 3
+      },
+      {
+        "number": 3,
+        "round": 1,
+        "wave": 1,
+        "board": "Schwarz",
+        "player1": "Ly",
+        "player2": "Rote",
+        "score1": null,
+        "score2": null,
+        "source_row": 4
+      },
+      {
+        "number": 4,
+        "round": 2,
+        "wave": 2,
+        "board": "Rot",
+        "player1": "Muli",
+        "player2": "Ly",
+        "score1": null,
+        "score2": null,
+        "source_row": 6
+      },
+      {
+        "number": 5,
+        "round": 2,
+        "wave": 2,
+        "board": "Blau",
+        "player1": "Rote",
+        "player2": "Bruce",
+        "score1": null,
+        "score2": null,
+        "source_row": 7
+      },
+      {
+        "number": 6,
+        "round": 2,
+        "wave": 2,
+        "board": "Schwarz",
+        "player1": "Swobi",
+        "player2": "Michel",
+        "score1": null,
+        "score2": null,
+        "source_row": 8
+      },
+      {
+        "number": 7,
+        "round": 3,
+        "wave": 3,
+        "board": "Rot",
+        "player1": "Michel",
+        "player2": "Rote",
+        "score1": null,
+        "score2": null,
+        "source_row": 10
+      },
+      {
+        "number": 8,
+        "round": 3,
+        "wave": 3,
+        "board": "Blau",
+        "player1": "Ly",
+        "player2": "Swobi",
+        "score1": null,
+        "score2": null,
+        "source_row": 11
+      },
+      {
+        "number": 9,
+        "round": 3,
+        "wave": 3,
+        "board": "Schwarz",
+        "player1": "Bruce",
+        "player2": "Muli",
+        "score1": null,
+        "score2": null,
+        "source_row": 12
+      },
+      {
+        "number": 10,
+        "round": 4,
+        "wave": 4,
+        "board": "Rot",
+        "player1": "Bruce",
+        "player2": "Ly",
+        "score1": null,
+        "score2": null,
+        "source_row": 14
+      },
+      {
+        "number": 11,
+        "round": 4,
+        "wave": 4,
+        "board": "Blau",
+        "player1": "Muli",
+        "player2": "Michel",
+        "score1": null,
+        "score2": null,
+        "source_row": 15
+      },
+      {
+        "number": 12,
+        "round": 4,
+        "wave": 4,
+        "board": "Schwarz",
+        "player1": "Rote",
+        "player2": "Swobi",
+        "score1": null,
+        "score2": null,
+        "source_row": 16
+      },
+      {
+        "number": 13,
+        "round": 5,
+        "wave": 5,
+        "board": "Rot",
+        "player1": "Rote",
+        "player2": "Muli",
+        "score1": null,
+        "score2": null,
+        "source_row": 18
+      },
+      {
+        "number": 14,
+        "round": 5,
+        "wave": 5,
+        "board": "Blau",
+        "player1": "Swobi",
+        "player2": "Bruce",
+        "score1": null,
+        "score2": null,
+        "source_row": 19
+      },
+      {
+        "number": 15,
+        "round": 5,
+        "wave": 5,
+        "board": "Schwarz",
+        "player1": "Michel",
+        "player2": "Ly",
+        "score1": null,
+        "score2": null,
+        "source_row": 20
+      }
+    ]
+  },
+  {
+    "name": "Dartturnier · 28.08.2026 · 22:31",
+    "created_at": "2026-08-28T20:31:00+00:00",
+    "source_file": "Dartturnier 2026 08 28 22-31.xlsx",
+    "source_sha256": "772b0da717eb5121bf8f5e7f89ecf3e0557c88cc38c960263068c6be150462fe",
+    "source_notes": [],
+    "boards": 2,
+    "players": [
+      "muli",
+      "bruce",
+      "rote",
+      "ly"
+    ],
+    "matches": [
+      {
+        "number": 1,
+        "round": 1,
+        "wave": 1,
+        "board": "Rot",
+        "player1": "muli",
+        "player2": "rote",
+        "score1": 1,
+        "score2": 0,
+        "source_row": 2
+      },
+      {
+        "number": 2,
+        "round": 1,
+        "wave": 1,
+        "board": "Blau",
+        "player1": "bruce",
+        "player2": "ly",
+        "score1": 1,
+        "score2": 0,
+        "source_row": 3
+      },
+      {
+        "number": 3,
+        "round": 2,
+        "wave": 2,
+        "board": "Rot",
+        "player1": "rote",
+        "player2": "ly",
+        "score1": 1,
+        "score2": 0,
+        "source_row": 5
+      },
+      {
+        "number": 4,
+        "round": 2,
+        "wave": 2,
+        "board": "Blau",
+        "player1": "muli",
+        "player2": "bruce",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 6
+      },
+      {
+        "number": 5,
+        "round": 3,
+        "wave": 3,
+        "board": "Rot",
+        "player1": "ly",
+        "player2": "muli",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 8
+      },
+      {
+        "number": 6,
+        "round": 3,
+        "wave": 3,
+        "board": "Blau",
+        "player1": "bruce",
+        "player2": "rote",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 9
+      }
+    ]
+  },
+  {
+    "name": "Dartturnier · 28.08.2026 · 23:01",
+    "created_at": "2026-08-28T21:01:00+00:00",
+    "source_file": "Dartturnier 2026 08 28 23-01.xlsx",
+    "source_sha256": "5d2b17d3aff3ba450f6be84ee20edf47a3c679c6a3df9a1bdd135fb03d014e15",
+    "source_notes": [],
+    "boards": 2,
+    "players": [
+      "ly",
+      "muli",
+      "bruce",
+      "rote"
+    ],
+    "matches": [
+      {
+        "number": 1,
+        "round": 1,
+        "wave": 1,
+        "board": "Rot",
+        "player1": "ly",
+        "player2": "muli",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 2
+      },
+      {
+        "number": 2,
+        "round": 1,
+        "wave": 1,
+        "board": "Blau",
+        "player1": "bruce",
+        "player2": "rote",
+        "score1": 1,
+        "score2": 0,
+        "source_row": 3
+      },
+      {
+        "number": 3,
+        "round": 2,
+        "wave": 2,
+        "board": "Rot",
+        "player1": "bruce",
+        "player2": "ly",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 5
+      },
+      {
+        "number": 4,
+        "round": 2,
+        "wave": 2,
+        "board": "Blau",
+        "player1": "muli",
+        "player2": "rote",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 6
+      },
+      {
+        "number": 5,
+        "round": 3,
+        "wave": 3,
+        "board": "Rot",
+        "player1": "muli",
+        "player2": "bruce",
+        "score1": 1,
+        "score2": 0,
+        "source_row": 8
+      },
+      {
+        "number": 6,
+        "round": 3,
+        "wave": 3,
+        "board": "Blau",
+        "player1": "rote",
+        "player2": "ly",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 9
+      }
+    ]
+  },
+  {
+    "name": "Dartturnier · 03.09.2026 · 20:03",
+    "created_at": "2026-09-03T18:03:00+00:00",
+    "source_file": "Dartturnier 2026 09 03 20-03.xlsx",
+    "source_sha256": "8932d3e2edc05904aa6faf8b09dc03aa87881f5bba4b358a5f55ff9fbdf23d71",
+    "source_notes": [],
+    "boards": 2,
+    "players": [
+      "muli",
+      "ly",
+      "swobi",
+      "rote",
+      "neidi"
+    ],
+    "matches": [
+      {
+        "number": 1,
+        "round": 1,
+        "wave": 1,
+        "board": "Rot",
+        "player1": "neidi",
+        "player2": "ly",
+        "score1": null,
+        "score2": null,
+        "source_row": 2
+      },
+      {
+        "number": 2,
+        "round": 1,
+        "wave": 1,
+        "board": "Blau",
+        "player1": "swobi",
+        "player2": "muli",
+        "score1": null,
+        "score2": null,
+        "source_row": 3
+      },
+      {
+        "number": 3,
+        "round": 2,
+        "wave": 2,
+        "board": "Rot",
+        "player1": "ly",
+        "player2": "swobi",
+        "score1": null,
+        "score2": null,
+        "source_row": 5
+      },
+      {
+        "number": 4,
+        "round": 2,
+        "wave": 2,
+        "board": "Blau",
+        "player1": "rote",
+        "player2": "neidi",
+        "score1": null,
+        "score2": null,
+        "source_row": 6
+      },
+      {
+        "number": 5,
+        "round": 3,
+        "wave": 3,
+        "board": "Rot",
+        "player1": "neidi",
+        "player2": "swobi",
+        "score1": null,
+        "score2": null,
+        "source_row": 8
+      },
+      {
+        "number": 6,
+        "round": 3,
+        "wave": 3,
+        "board": "Blau",
+        "player1": "muli",
+        "player2": "rote",
+        "score1": null,
+        "score2": null,
+        "source_row": 9
+      },
+      {
+        "number": 7,
+        "round": 4,
+        "wave": 4,
+        "board": "Rot",
+        "player1": "muli",
+        "player2": "ly",
+        "score1": null,
+        "score2": null,
+        "source_row": 11
+      },
+      {
+        "number": 8,
+        "round": 4,
+        "wave": 4,
+        "board": "Blau",
+        "player1": "rote",
+        "player2": "swobi",
+        "score1": null,
+        "score2": null,
+        "source_row": 12
+      },
+      {
+        "number": 9,
+        "round": 5,
+        "wave": 5,
+        "board": "Rot",
+        "player1": "ly",
+        "player2": "rote",
+        "score1": null,
+        "score2": null,
+        "source_row": 14
+      },
+      {
+        "number": 10,
+        "round": 5,
+        "wave": 5,
+        "board": "Blau",
+        "player1": "neidi",
+        "player2": "muli",
+        "score1": null,
+        "score2": null,
+        "source_row": 15
+      }
+    ]
+  },
+  {
+    "name": "Dartturnier · 03.09.2026 · 21:35",
+    "created_at": "2026-09-03T19:35:00+00:00",
+    "source_file": "Dartturnier 2026 09 03 21-35.xlsx",
+    "source_sha256": "12f8ef33c5029fd442af15b6e659360889dc9dd914e3fe2bd3fa424dfa6e1ef7",
+    "source_notes": [],
+    "boards": 3,
+    "players": [
+      "ly",
+      "rote",
+      "muli",
+      "swobi",
+      "bruce",
+      "neidi"
+    ],
+    "matches": [
+      {
+        "number": 1,
+        "round": 1,
+        "wave": 1,
+        "board": "Rot",
+        "player1": "rote",
+        "player2": "muli",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 2
+      },
+      {
+        "number": 2,
+        "round": 1,
+        "wave": 1,
+        "board": "Blau",
+        "player1": "ly",
+        "player2": "swobi",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 3
+      },
+      {
+        "number": 3,
+        "round": 1,
+        "wave": 1,
+        "board": "Schwarz",
+        "player1": "neidi",
+        "player2": "bruce",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 4
+      },
+      {
+        "number": 4,
+        "round": 2,
+        "wave": 2,
+        "board": "Rot",
+        "player1": "bruce",
+        "player2": "ly",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 6
+      },
+      {
+        "number": 5,
+        "round": 2,
+        "wave": 2,
+        "board": "Blau",
+        "player1": "muli",
+        "player2": "neidi",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 7
+      },
+      {
+        "number": 6,
+        "round": 2,
+        "wave": 2,
+        "board": "Schwarz",
+        "player1": "swobi",
+        "player2": "rote",
+        "score1": 1,
+        "score2": 0,
+        "source_row": 8
+      },
+      {
+        "number": 7,
+        "round": 3,
+        "wave": 3,
+        "board": "Rot",
+        "player1": "swobi",
+        "player2": "muli",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 10
+      },
+      {
+        "number": 8,
+        "round": 3,
+        "wave": 3,
+        "board": "Blau",
+        "player1": "rote",
+        "player2": "bruce",
+        "score1": 1,
+        "score2": 0,
+        "source_row": 11
+      },
+      {
+        "number": 9,
+        "round": 3,
+        "wave": 3,
+        "board": "Schwarz",
+        "player1": "ly",
+        "player2": "neidi",
+        "score1": 1,
+        "score2": 0,
+        "source_row": 12
+      },
+      {
+        "number": 10,
+        "round": 4,
+        "wave": 4,
+        "board": "Rot",
+        "player1": "ly",
+        "player2": "rote",
+        "score1": 1,
+        "score2": 0,
+        "source_row": 14
+      },
+      {
+        "number": 11,
+        "round": 4,
+        "wave": 4,
+        "board": "Blau",
+        "player1": "neidi",
+        "player2": "swobi",
+        "score1": 1,
+        "score2": 0,
+        "source_row": 15
+      },
+      {
+        "number": 12,
+        "round": 4,
+        "wave": 4,
+        "board": "Schwarz",
+        "player1": "bruce",
+        "player2": "muli",
+        "score1": 0,
+        "score2": 1,
+        "source_row": 16
+      },
+      {
+        "number": 13,
+        "round": 5,
+        "wave": 5,
+        "board": "Rot",
+        "player1": "swobi",
+        "player2": "bruce",
+        "score1": 1,
+        "score2": 0,
+        "source_row": 18
+      },
+      {
+        "number": 14,
+        "round": 5,
+        "wave": 5,
+        "board": "Blau",
+        "player1": "muli",
+        "player2": "ly",
+        "score1": 1,
+        "score2": 0,
+        "source_row": 19
+      },
+      {
+        "number": 15,
+        "round": 5,
+        "wave": 5,
+        "board": "Schwarz",
+        "player1": "rote",
+        "player2": "neidi",
+        "score1": 1,
+        "score2": 0,
+        "source_row": 20
+      }
+    ]
+  }
+]

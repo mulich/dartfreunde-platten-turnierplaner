@@ -1,0 +1,15 @@
+name: dartfreunde-platten-turnierplaner
+services:
+  turnierplaner:
+    image: ghcr.io/mulich/dartfreunde-platten-turnierplaner:latest
+    pull_policy: always
+    restart: unless-stopped
+    ports:
+      - "${TOURNAMENT_PORT:-18081}:8000"
+    volumes:
+      - tournaments:/data
+    security_opt:
+      - no-new-privileges:true
+volumes:
+  tournaments:
+    name: dartfreunde-platten-turnierplaner-data
