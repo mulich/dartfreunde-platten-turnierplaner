@@ -57,13 +57,13 @@ def init_database():
         CREATE INDEX IF NOT EXISTS players_tournament ON players(tournament_id);
         ''')
         columns = {row['name'] for row in db.execute('PRAGMA table_info(tournaments)')}
-        for name, kind in [('archived_at', 'TEXT'), ('source_file', 'TEXT'),
+        for name, kind in [('archived_at', 'TEXT'), ('aborted_at', 'TEXT'), ('source_file', 'TEXT'),
                            ('source_sha256', 'TEXT'), ('source_notes', "TEXT NOT NULL DEFAULT '[]'")]:
             if name not in columns:
                 db.execute(f'ALTER TABLE tournaments ADD COLUMN {name} {kind}')
         db.execute('UPDATE tournaments SET archived_at=finished_at WHERE finished_at IS NOT NULL AND archived_at IS NULL')
         db.execute('CREATE UNIQUE INDEX IF NOT EXISTS tournament_source ON tournaments(source_sha256)')
-        db.execute('PRAGMA user_version = 2')
+        db.execute('PRAGMA user_version = 3')
         db.execute('CREATE TABLE IF NOT EXISTS deleted_imports (source_sha256 TEXT PRIMARY KEY)')
         history = Path(os.environ.get('TOURNAMENT_HISTORY', ''))
         if history.is_file():
@@ -178,7 +178,7 @@ def list_tournaments():
             t['players'] = db.execute('SELECT COUNT(*) FROM players WHERE tournament_id=?', (t['id'],)).fetchone()[0]
             t['total'], t['played'] = db.execute('SELECT COUNT(*), COUNT(score1) FROM matches WHERE tournament_id=?', (t['id'],)).fetchone()
             t['winner'] = None
-            if t['archived_at'] and t['played'] == t['total']:
+            if t['archived_at'] and not t['aborted_at'] and t['played'] == t['total']:
                 t['winner'] = ' / '.join(p['name'] for p in detail(db, t['id'])['standings'] if p['rank'] == 1)
             result.append(t)
         return result
@@ -241,6 +241,8 @@ def finish_tournament(tournament_id: str):
     with database() as db:
         db.execute('BEGIN IMMEDIATE')
         t = detail(db, tournament_id)
+        if t['aborted_at']:
+            raise HTTPException(409, 'Das abgebrochene Turnier zuerst wieder öffnen.')
         if t['played'] != t['total']:
             raise HTTPException(409, 'Zuerst die Ergebnisse aller Spiele eintragen.')
         if not t['finished_at']:
@@ -254,7 +256,7 @@ def reopen_tournament(tournament_id: str):
     with database() as db:
         db.execute('BEGIN IMMEDIATE')
         get_tournament(db, tournament_id)
-        db.execute('UPDATE tournaments SET finished_at=NULL,archived_at=NULL WHERE id=?', (tournament_id,))
+        db.execute('UPDATE tournaments SET finished_at=NULL,archived_at=NULL,aborted_at=NULL WHERE id=?', (tournament_id,))
         return detail(db, tournament_id)
 
 
@@ -271,3 +273,17 @@ def delete_tournament(tournament_id: str):
         db.execute('DELETE FROM players WHERE tournament_id=?', (tournament_id,))
         db.execute('DELETE FROM tournaments WHERE id=?', (tournament_id,))
     return {'deleted': tournament_id}
+
+
+@app.post('/api/tournaments/{tournament_id}/abort')
+def abort_tournament(tournament_id: str):
+    with database() as db:
+        db.execute('BEGIN IMMEDIATE')
+        t = get_tournament(db, tournament_id)
+        if t['aborted_at']:
+            return detail(db, tournament_id)
+        if t['archived_at'] or t['finished_at']:
+            raise HTTPException(409, 'Nur laufende Turniere können abgebrochen werden.')
+        now = datetime.now(timezone.utc).isoformat()
+        db.execute('UPDATE tournaments SET aborted_at=?,archived_at=? WHERE id=?', (now, now, tournament_id))
+        return detail(db, tournament_id)

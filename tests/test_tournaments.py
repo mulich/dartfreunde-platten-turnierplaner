@@ -158,3 +158,43 @@ def test_new_installation_is_empty_without_history_setting(client, monkeypatch):
     monkeypatch.delenv('TOURNAMENT_HISTORY')
     with TestClient(app) as restarted:
         assert restarted.get('/api/tournaments').json()==[]
+
+
+def test_abort_preserves_results_and_can_resume_after_restart(client):
+    t=create(client)
+    url=f"/api/tournaments/{t['id']}"
+    match=t['matches'][0]
+    client.put(url+f"/matches/{match['id']}",json={'score1':3,'score2':1,'revision':0})
+    aborted=client.post(url+'/abort').json()
+    assert aborted['aborted_at']==aborted['archived_at']
+    assert not aborted['finished_at']
+    assert aborted['played']==1 and len(aborted['matches'])==3
+    assert client.post(url+'/abort').json()['aborted_at']==aborted['aborted_at']
+    assert client.get('/api/tournaments').json()[0]['winner'] is None
+    assert client.put(url+f"/matches/{match['id']}",json={'score1':1,'score2':3,'revision':1}).status_code==409
+    with TestClient(app) as restarted:
+        assert restarted.get(url).json()['aborted_at']==aborted['aborted_at']
+        resumed=restarted.post(url+'/reopen').json()
+        assert resumed['aborted_at'] is None and resumed['archived_at'] is None
+        assert resumed['played']==1
+        assert restarted.put(url+f"/matches/{match['id']}",json={'score1':1,'score2':3,'revision':1}).status_code==200
+
+
+def test_abort_complete_scores_does_not_declare_winner_and_can_be_deleted(client):
+    t=create(client,['A','B'])
+    url=f"/api/tournaments/{t['id']}"
+    client.put(url+f"/matches/{t['matches'][0]['id']}",json={'score1':3,'score2':1,'revision':0})
+    assert client.post(url+'/abort').status_code==200
+    assert client.get('/api/tournaments').json()[0]['winner'] is None
+    assert client.post(url+'/finish').status_code==409
+    assert client.delete(url).status_code==200
+
+
+def test_abort_rejects_completed_and_missing_tournaments(client):
+    t=create(client,['A','B'])
+    url=f"/api/tournaments/{t['id']}"
+    client.put(url+f"/matches/{t['matches'][0]['id']}",json={'score1':3,'score2':1,'revision':0})
+    assert client.post(url+'/finish').status_code==200
+    assert client.post(url+'/abort').status_code==409
+    assert client.post('/api/tournaments/missing/abort').status_code==404
+    assert client.get(url).json()['finished_at']

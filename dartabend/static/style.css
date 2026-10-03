@@ -255,3 +255,28 @@ dialog{padding:22px}
 
 .button.danger{color:#ffaaaa;border-color:#804454;background:transparent}
 .button.danger:hover{background:#492c3a}
+
+/* Standings */
+.standings-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:15px}
+.standings-heading h3{margin:0;font-size:18px;font-weight:600}
+.standings-wrap{border-radius:10px;box-shadow:0 8px 24px #07111c20}
+.standings-table{min-width:760px;font-variant-numeric:tabular-nums}
+.standings-table th{padding:15px 16px;background:#1c344b;letter-spacing:.7px}
+.standings-table td{padding:17px 16px;border-top:1px solid #2a4055;color:#b8cadd}
+.standings-table tbody tr:nth-child(even){background:#192e42}
+.standings-table tbody tr:hover{background:#233e57}
+.standings-table .standing-player{font-size:14px;color:var(--ink);font-weight:600}
+.standings-table .rank{text-align:left;min-width:100px}
+.rank-label{display:inline-flex;align-items:center;gap:12px;min-width:60px;color:#a5bdd2}
+.medal{font-size:24px;line-height:1}
+.podium-1 .rank-label{color:#f0cd78}
+.podium-2 .rank-label{color:#d1dfe9}
+.podium-3 .rank-label{color:#dbac87}
+.standings-table .podium-1{background:#253b49}
+.standings-table .podium-1 td:first-child{box-shadow:inset 3px 0 #cba35b}
+.points-pill{display:inline-flex;justify-content:center;align-items:center;min-width:36px;padding:6px 9px;border-radius:6px;background:#244664;color:#9ddaff;font-weight:750;font-size:15px}
+.standings-table .difference-positive{color:#92d4bf}
+.standings-table .difference-negative{color:#dfa6af}
+.badge.aborted{background:#423548;color:#e0bdcf}
+.aborted-note{background:#302b3f;border-color:#514054;color:#e0bdcf}
+@media(max-width:600px){.standings-table th,.standings-table td{padding:13px 12px}.standings-heading{align-items:flex-start}.standings-heading .badge{font-size:9px}}

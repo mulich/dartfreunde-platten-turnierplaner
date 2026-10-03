@@ -20,6 +20,9 @@ Autodarts-Account-Portal ist eine getrennte Anwendung.
   Leg-Differenz. Vollständig gleiche Werte teilen sich den Rang.
 - Turniere nach dem letzten Ergebnis abschließen und im Archiv nachsehen.
   Für Korrekturen lassen sich abgeschlossene Turniere wieder öffnen.
+- Laufende Turniere mit Bestätigungsabfrage abbrechen; bisherige Ergebnisse
+  bleiben als Zwischenstand im Archiv. Abgebrochene Turniere lassen sich fortsetzen.
+- Tabelle mit Medaillen für die Plätze 1–3, hervorgehobenen Punkten und Leg-Differenz.
 - Archivierte Turniere mit Sicherheitsabfrage endgültig löschen.
 - Alle Daten bleiben in einer SQLite-Datenbank gespeichert; kein Excel notwendig.
 - Verteilung der Scheiben und Anwürfe je Spieler ansehen.
