@@ -5,3 +5,7 @@ __pycache__/
 *.jpg
 *.png
 .DS_Store
+
+.env
+.env.*
+!.env.example

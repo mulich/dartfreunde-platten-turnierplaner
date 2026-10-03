@@ -280,3 +280,20 @@ dialog{padding:22px}
 .badge.aborted{background:#423548;color:#e0bdcf}
 .aborted-note{background:#302b3f;border-color:#514054;color:#e0bdcf}
 @media(max-width:600px){.standings-table th,.standings-table td{padding:13px 12px}.standings-heading{align-items:flex-start}.standings-heading .badge{font-size:9px}}
+.game-options{border:1px solid var(--line);border-radius:8px;margin:20px 0;padding:15px}
+.game-options legend{color:var(--ink);font-size:13px;padding:0 6px}
+.settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.settings-grid label{margin:0;font-size:11px;color:var(--muted)}
+.settings-grid select,.settings-grid input{display:block;width:100%;margin-top:6px;min-height:40px;background:#172c40;color:var(--ink);border:1px solid var(--line);border-radius:5px;padding:8px}
+.game-summary{color:var(--muted);font-size:12px;margin:0 0 20px}
+.bridge-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin-bottom:28px}
+.bridge-card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:20px}
+.bridge-card h3{display:flex;align-items:center;gap:9px;margin:0}
+.bridge-card h3 .badge{margin-left:auto}
+.board-ident{font-size:10px;font-family:monospace;color:var(--muted);overflow-wrap:anywhere}
+.bridge-card label{display:block;margin-top:15px;font-size:11px}
+.bridge-card input{width:100%;font-size:11px}
+.bridge-job{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:17px;background:var(--panel);border:1px solid var(--line);border-radius:6px;margin:10px 0;font-size:13px}
+.bridge-job p{color:var(--muted);font-size:12px;overflow-wrap:anywhere}
+.bridge-job a{color:#8ed3ff}
+@media(max-width:600px){.bridge-job{align-items:flex-start;flex-direction:column}.detail-heading h1{font-size:25px}}

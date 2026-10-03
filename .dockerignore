@@ -9,3 +9,6 @@ data
 scripts
 *.jpg
 *.png
+
+.env
+.env.*

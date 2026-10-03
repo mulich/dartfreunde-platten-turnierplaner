@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field, StrictInt, model_validator
 
 from .scheduler import spielplan_erstellen
 from .history_import import import_history
+from .integration import GameSettings, initialize as init_integration, install as install_integration
 
 STATIC = Path(__file__).parent / 'static'
 DEFAULT_PLAYERS = ('Muli', 'Bruce', 'Ly', 'Schlatho', 'Michel', 'Rote', 'Manuel', 'Swobi')
@@ -58,13 +59,15 @@ def init_database():
         ''')
         columns = {row['name'] for row in db.execute('PRAGMA table_info(tournaments)')}
         for name, kind in [('archived_at', 'TEXT'), ('aborted_at', 'TEXT'), ('source_file', 'TEXT'),
-                           ('source_sha256', 'TEXT'), ('source_notes', "TEXT NOT NULL DEFAULT '[]'")]:
+                           ('source_sha256', 'TEXT'), ('game_settings', "TEXT NOT NULL DEFAULT '{}'"),
+                           ('autodarts_enabled', 'INTEGER NOT NULL DEFAULT 0'), ('source_notes', "TEXT NOT NULL DEFAULT '[]'")]:
             if name not in columns:
                 db.execute(f'ALTER TABLE tournaments ADD COLUMN {name} {kind}')
         db.execute('UPDATE tournaments SET archived_at=finished_at WHERE finished_at IS NOT NULL AND archived_at IS NULL')
         db.execute('CREATE UNIQUE INDEX IF NOT EXISTS tournament_source ON tournaments(source_sha256)')
-        db.execute('PRAGMA user_version = 3')
+        db.execute('PRAGMA user_version = 4')
         db.execute('CREATE TABLE IF NOT EXISTS deleted_imports (source_sha256 TEXT PRIMARY KEY)')
+        init_integration(db)
         history = Path(os.environ.get('TOURNAMENT_HISTORY', ''))
         if history.is_file():
             import_history(db, history)
@@ -84,6 +87,7 @@ class TournamentCreate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     players: list[str] = Field(min_length=2, max_length=64)
     boards: StrictInt = Field(default=2, ge=2, le=3)
+    game_settings: GameSettings = Field(default_factory=GameSettings)
 
     @model_validator(mode='after')
     def validate_names(self):
@@ -118,6 +122,8 @@ def get_tournament(db, tournament_id):
         raise HTTPException(404, 'Turnier nicht gefunden.')
     tournament = dict(row)
     tournament['source_notes'] = json.loads(tournament['source_notes'])
+    tournament['game_settings_known'] = tournament['game_settings'] != '{}'
+    tournament['game_settings'] = GameSettings.model_validate(json.loads(tournament['game_settings'])).model_dump()
     return tournament
 
 
@@ -204,8 +210,8 @@ def create_tournament(body: TournamentCreate):
     plan, _, _ = spielplan_erstellen(body.players, boards)
     plan.sort(key=lambda m: (m['durchgang'], boards.index(m['scheibe'])))
     with database() as db:
-        db.execute('INSERT INTO tournaments(id,name,created_at,boards) VALUES(?,?,?,?)',
-                   (tournament_id, body.name, datetime.now(timezone.utc).isoformat(), body.boards))
+        db.execute('INSERT INTO tournaments(id,name,created_at,boards,game_settings) VALUES(?,?,?,?,?)',
+                   (tournament_id, body.name, datetime.now(timezone.utc).isoformat(), body.boards, body.game_settings.model_dump_json()))
         db.executemany('INSERT INTO players(tournament_id,name,position) VALUES(?,?,?)',
                        [(tournament_id, name, i) for i, name in enumerate(body.players)])
         db.executemany('INSERT INTO matches(tournament_id,number,round,wave,board,player1,player2) VALUES(?,?,?,?,?,?,?)',
@@ -230,8 +236,14 @@ def update_score(tournament_id: str, match_id: int, body: ScoreUpdate):
         match = db.execute('SELECT * FROM matches WHERE id=? AND tournament_id=?', (match_id, tournament_id)).fetchone()
         if not match:
             raise HTTPException(404, 'Spiel nicht gefunden.')
+        if t['autodarts_enabled']:
+            raise HTTPException(409, 'Autodarts-Automatik vor manuellen Ergebniskorrekturen pausieren.')
+        if db.execute("SELECT id FROM bridge_jobs WHERE match_id=? AND phase!='done'", (match_id,)).fetchone():
+            raise HTTPException(409, 'Diese Begegnung ist mit Autodarts verknüpft. Automatik pausieren und Auftrag zuerst zurücksetzen.')
         if match['revision'] != body.revision:
             raise HTTPException(409, 'Dieses Ergebnis wurde inzwischen geändert. Ansicht neu laden und erneut prüfen.')
+        if body.score1 is None:
+            db.execute("DELETE FROM bridge_jobs WHERE match_id=? AND phase='done'", (match_id,))
         db.execute('UPDATE matches SET score1=?,score2=?,revision=revision+1 WHERE id=?', (body.score1, body.score2, match_id))
         return detail(db, tournament_id)
 
@@ -247,7 +259,7 @@ def finish_tournament(tournament_id: str):
             raise HTTPException(409, 'Zuerst die Ergebnisse aller Spiele eintragen.')
         if not t['finished_at']:
             now = datetime.now(timezone.utc).isoformat()
-            db.execute('UPDATE tournaments SET finished_at=?,archived_at=? WHERE id=?', (now, now, tournament_id))
+            db.execute('UPDATE tournaments SET finished_at=?,archived_at=?,autodarts_enabled=0 WHERE id=?', (now, now, tournament_id))
         return detail(db, tournament_id)
 
 
@@ -256,7 +268,7 @@ def reopen_tournament(tournament_id: str):
     with database() as db:
         db.execute('BEGIN IMMEDIATE')
         get_tournament(db, tournament_id)
-        db.execute('UPDATE tournaments SET finished_at=NULL,archived_at=NULL,aborted_at=NULL WHERE id=?', (tournament_id,))
+        db.execute('UPDATE tournaments SET finished_at=NULL,archived_at=NULL,aborted_at=NULL,autodarts_enabled=0 WHERE id=?', (tournament_id,))
         return detail(db, tournament_id)
 
 
@@ -269,6 +281,7 @@ def delete_tournament(tournament_id: str):
             raise HTTPException(409, 'Nur Turniere im Archiv können gelöscht werden.')
         if t['source_sha256']:
             db.execute('INSERT OR IGNORE INTO deleted_imports(source_sha256) VALUES(?)', (t['source_sha256'],))
+        db.execute('DELETE FROM bridge_jobs WHERE match_id IN (SELECT id FROM matches WHERE tournament_id=?)', (tournament_id,))
         db.execute('DELETE FROM matches WHERE tournament_id=?', (tournament_id,))
         db.execute('DELETE FROM players WHERE tournament_id=?', (tournament_id,))
         db.execute('DELETE FROM tournaments WHERE id=?', (tournament_id,))
@@ -285,5 +298,8 @@ def abort_tournament(tournament_id: str):
         if t['archived_at'] or t['finished_at']:
             raise HTTPException(409, 'Nur laufende Turniere können abgebrochen werden.')
         now = datetime.now(timezone.utc).isoformat()
-        db.execute('UPDATE tournaments SET aborted_at=?,archived_at=? WHERE id=?', (now, now, tournament_id))
+        db.execute('UPDATE tournaments SET aborted_at=?,archived_at=?,autodarts_enabled=0 WHERE id=?', (now, now, tournament_id))
         return detail(db, tournament_id)
+
+
+install_integration(app, database, get_tournament, detail)

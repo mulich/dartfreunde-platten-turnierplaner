@@ -5,12 +5,13 @@
 <meta name="theme-color" content="#101c29"><title>Dartfreunde Platten · Turnierplaner</title>
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/static/style.css">
 <script defer src="/static/app.js"></script>
+<script defer src="/static/integration.js"></script>
 </head>
 <body>
 <aside class="sidebar">
 <a class="brand" href="#"><span class="brand-icon">◎</span><span>Dartfreunde<span class="brand-place">Platten</span><small>TURNIERPLANER</small></span></a>
 <div class="nav-label">TURNIERZENTRALE</div>
-<nav aria-label="Hauptnavigation"><button class="nav-item selected" data-page="active"><span>◫</span> Turniere <span class="nav-count" id="active-count">0</span></button><button class="nav-item" data-page="archive"><span>◷</span> Archiv <span class="nav-count" id="archive-count">0</span></button></nav>
+<nav aria-label="Hauptnavigation"><button class="nav-item selected" data-page="active"><span>◫</span> Turniere <span class="nav-count" id="active-count">0</span></button><button class="nav-item" data-page="archive"><span>◷</span> Archiv <span class="nav-count" id="archive-count">0</span></button><button class="nav-item" data-page="integration"><span>⚙</span> Autodarts</button></nav>
 </aside>
 <div class="workspace">
 <header class="topbar"><span>TURNIERPLANER</span><span class="today" id="today"></span></header>
@@ -26,12 +27,22 @@
 <div class="player-shortcuts" id="player-shortcuts" role="group" aria-labelledby="shortcut-label"></div>
 <p class="field-hint" id="shortcut-status" role="status"></p>
 <label for="player-name" class="sr-only">Neuer Spielername</label>
-<div class="add-player-row"><input id="player-name" maxlength="60" placeholder="Neuer Spielername" autocomplete="off"><button type="button" class="button" id="add-player">＋ Hinzufügen</button></div>
+<div class="add-player-row"><input id="player-name" maxlength="60" placeholder="Autodarts-Accountname" autocomplete="off"><button type="button" class="button" id="add-player">＋ Hinzufügen</button></div>
 <div class="selected-heading"><span id="selected-label">Teilnehmer</span><span class="label-note" id="player-count">0 Spieler</span></div>
 <div class="selected-players" id="selected-players" role="group" aria-labelledby="selected-label"></div>
-<p class="field-hint">2–64 Spieler</p>
+<p class="field-hint">2–64 Spieler · Für Autodarts den exakten Accountnamen verwenden.</p>
 <label>Scheiben</label>
 <div class="board-options"><label class="board-option"><input type="radio" name="boards" value="2" checked><strong>2 Scheiben</strong><span><i class="dot red"></i> Rot <i class="dot blue"></i> Blau</span></label><label class="board-option"><input type="radio" name="boards" value="3"><strong>3 Scheiben</strong><span><i class="dot red"></i><i class="dot blue"></i><i class="dot black"></i> Rot, Blau & Schwarz</span></label></div>
+<fieldset class="game-options"><legend>Spielregeln · X01</legend>
+<div class="settings-grid">
+<label>Startpunkte<select id="base-score"><option>121</option><option>170</option><option>301</option><option selected>501</option><option>701</option><option>901</option></select></label>
+<label>Matchlänge<select id="length-mode"><option value="best_of">Best of</option><option value="first_to">First to</option></select></label>
+<label>Legs<input id="match-length" type="number" min="1" max="99" step="1" value="3" required></label>
+<label>In<select id="in-mode"><option value="Straight">Straight In</option><option value="Double">Double In</option><option value="Master">Master In</option></select></label>
+<label>Out<select id="out-mode"><option value="Straight">Straight Out</option><option value="Double" selected>Double Out</option><option value="Master">Master Out</option></select></label>
+<label>Bull-Wertung<select id="bull-mode"><option>25/50</option><option>50/50</option></select></label>
+<label>Max. Runden<select id="max-rounds"><option>15</option><option>20</option><option selected>50</option><option>80</option></select></label>
+</div><p class="field-hint">Bull-off aus · Spieler 1 wirft an. Best of 3 = 2 Legs zum Sieg.</p></fieldset>
 <div class="plan-summary" id="plan-summary">Mindestens zwei Spieler auswählen.</div>
 <p class="form-error" id="create-error" role="alert"></p><button class="button primary full" type="submit" id="create-submit">Spielplan erstellen <span>→</span></button>
 </form></dialog>

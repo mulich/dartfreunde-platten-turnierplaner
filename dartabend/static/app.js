@@ -15,7 +15,8 @@ async function api(path, options = {}) {
   if (!response.ok) {
     let message = data.detail;
     if (Array.isArray(message)) message = message.map(e => e.msg.replace(/^Value error, /, '')).join('\n');
-    throw new Error(message || 'Die Anfrage konnte nicht ausgeführt werden.');
+    const error = new Error(message || 'Die Anfrage konnte nicht ausgeführt werden.');
+    error.status=response.status;throw error;
   }
   return data;
 }
@@ -41,9 +42,10 @@ function renderCards() {
 function renderDetail() {
   const t=state.tournament;
   state.page=isArchived(t)?'archive':'active'; setNav();
-  main.innerHTML=`<button class="back" data-back>← Zurück zu ${isArchived(t)?'Archiv':'Turnieren'}</button><div class="page-heading detail-heading"><div><span class="eyebrow">DARTFREUNDE PLATTEN</span><h1>${esc(t.name)}</h1><p class="detail-meta">${date(t.created_at)} &nbsp;·&nbsp; ${t.players.length} Spieler &nbsp;·&nbsp; ${t.boards} Scheiben &nbsp;·&nbsp; Jeder gegen jeden</p></div><div class="detail-actions"><button class="button small" data-refresh>↻ Aktualisieren</button>${isArchived(t)?`<button class="button small" data-reopen>${t.aborted_at?'Turnier fortsetzen':'Für Korrektur öffnen'}</button><button class="button small danger" data-delete>Turnier löschen</button>`:`<button class="button small ${t.played===t.total?'primary':''}" data-finish ${t.played!==t.total?'disabled title="Erst alle Spiele eintragen"':''}>✓ Turnier abschließen</button><button class="button small danger" data-abort>Turnier abbrechen</button>`}</div></div>
+  main.innerHTML=`<button class="back" data-back>← Zurück zu ${isArchived(t)?'Archiv':'Turnieren'}</button><div class="page-heading detail-heading"><div><span class="eyebrow">DARTFREUNDE PLATTEN</span><h1>${esc(t.name)}</h1><p class="detail-meta">${date(t.created_at)} &nbsp;·&nbsp; ${t.players.length} Spieler &nbsp;·&nbsp; ${t.boards} Scheiben &nbsp;·&nbsp; Jeder gegen jeden</p></div><div class="detail-actions"><button class="button small" data-refresh>↻ Aktualisieren</button>${!isArchived(t)?`<button class="button small" data-game-settings>Spielregeln</button><button class="button small ${t.autodarts_enabled?'primary':''}" data-automation>${t.autodarts_enabled?'Autodarts pausieren':'Autodarts starten'}</button>`:''}${isArchived(t)?`<button class="button small" data-reopen>${t.aborted_at?'Turnier fortsetzen':'Für Korrektur öffnen'}</button><button class="button small danger" data-delete>Turnier löschen</button>`:`<button class="button small ${t.played===t.total?'primary':''}" data-finish ${t.played!==t.total?'disabled title="Erst alle Spiele eintragen"':''}>✓ Turnier abschließen</button><button class="button small danger" data-abort>Turnier abbrechen</button>`}</div></div>
   ${t.aborted_at?`<div class="finished-note aborted-note">Abgebrochen am ${date(t.aborted_at)} · ${t.played} von ${t.total} Spielen erfasst. Die Tabelle zeigt den Zwischenstand.</div>`:''}
   ${t.source_file?`<div class="finished-note">Excel-Import: ${esc(t.source_file)}${t.played<t.total?`<br>${t.total-t.played} Spiele ohne Ergebnis. Die Tabelle zeigt den erfassten Zwischenstand.`:isArchived(t)&&!t.aborted_at?`<br>1. Platz: <strong>${t.standings.filter(p=>p.rank===1).map(p=>esc(p.name)).join(' / ')}</strong>`:''}${(t.source_notes||[]).map(note=>`<br>${esc(note)}`).join('')}</div>`:isArchived(t)&&!t.aborted_at?`<div class="finished-note">Abgeschlossen am ${date(t.finished_at)} · 1. Platz: <strong>${t.standings.filter(p=>p.rank===1).map(p=>esc(p.name)).join(' / ')}</strong></div>`:''}
+  <p class="game-summary">${t.game_settings_known?gameSummary(t.game_settings):'Spielregeln nicht hinterlegt'} · ${t.autodarts_enabled?'Autodarts aktiv':'Autodarts pausiert'}</p>
   <div class="detail-progress"><div class="progress"><span style="width:${percent(t)}%"></span></div><span>${t.played} / ${t.total} Spiele abgeschlossen</span></div>
   <div class="tabs" role="tablist" aria-label="Turnieransichten">${[['matches','Spielplan'],['table','Tabelle'],['players','Spieler & Verteilung']].map(([id,label])=>`<button role="tab" aria-selected="${state.tab===id}" class="tab ${state.tab===id?'selected':''}" data-tab="${id}">${label}</button>`).join('')}</div><section id="detail-content"></section>`;
   renderDetailContent();
@@ -72,12 +74,12 @@ function renderDetailContent() {
   document.querySelector('#status-filter').onchange=e=>{state.pending=e.target.value==='pending';renderDetailContent();};
 }
 function matchCard(m) {
-  const finished=isArchived(state.tournament);
+  const finished=isArchived(state.tournament) || state.tournament.autodarts_enabled;
   const played=m.score1!==null;
   return `<form class="match" data-match="${m.id}" data-revision="${m.revision}"><div class="match-top"><span class="board"><i class="dot ${boardColor(m.board)}"></i> Scheibe ${esc(m.board)}</span><span>Spiel ${m.number}</span></div>
   <div class="player-line"><label class="player-name" for="score1-${m.id}">${esc(m.player1)}<span class="starter">ANWURF</span></label><input class="score" id="score1-${m.id}" name="score1" type="number" min="0" max="999" step="1" inputmode="numeric" aria-label="Legs ${esc(m.player1)}" value="${m.score1??''}" ${finished?'disabled':'required'}></div>
   <div class="player-line"><label class="player-name" for="score2-${m.id}">${esc(m.player2)}</label><input class="score" id="score2-${m.id}" name="score2" type="number" min="0" max="999" step="1" inputmode="numeric" aria-label="Legs ${esc(m.player2)}" value="${m.score2??''}" ${finished?'disabled':'required'}></div>
-  <div class="match-footer"><span class="${played?'winner-name':''}">${played?'✓ '+esc(m.score1>m.score2?m.player1:m.player2):'Noch offen'}</span>${finished?'':`<span>${played?'<button type="button" class="clear-score" data-clear>Zurücksetzen</button>':''}<button class="button small" type="submit">Speichern</button></span>`}</div><p class="match-error" role="alert"></p></form>`;
+  <div class="match-footer"><span class="${played?'winner-name':''}">${played?'✓ '+esc(m.score1>m.score2?m.player1:m.player2):state.tournament.autodarts_enabled?'Autodarts übernimmt Ergebnis':'Noch offen'}</span>${finished?'':`<span>${played?'<button type="button" class="clear-score" data-clear>Zurücksetzen</button>':''}<button class="button small" type="submit">Speichern</button></span>`}</div><p class="match-error" role="alert"></p></form>`;
 }
 let selectedPlayers = [];
 let shortcuts = [];
@@ -134,6 +136,7 @@ async function route() {
   try {
     await loadList();
     if(version!==routeVersion)return;
+    if(location.hash==='#integration'){state.page='integration';setNav();await renderIntegration();return;}
     if(match) {
       const t=await api(`/api/tournaments/${match[1]}`);
       if(version!==routeVersion)return;
@@ -146,7 +149,7 @@ async function route() {
     main.innerHTML=`<div class="load-error"><h3>Die Ansicht konnte nicht geladen werden.</h3><p>${esc(error.message)}</p><button class="button" data-retry>Erneut versuchen</button><a class="button" href="#">Zur Übersicht</a></div>`;
   }
 }
-document.querySelectorAll('[data-page]').forEach(el=>el.onclick=()=>{state.search='';location.hash=el.dataset.page==='archive'?'archive':'';});
+document.querySelectorAll('[data-page]').forEach(el=>el.onclick=()=>{state.search='';location.hash=el.dataset.page==='integration'?'integration':el.dataset.page==='archive'?'archive':'';});
 document.querySelector('#close-dialog').onclick=()=>dialog.close();
 document.querySelector('#add-player').onclick=addTypedPlayer;
 document.querySelector('#player-name').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addTypedPlayer();}};
@@ -167,7 +170,7 @@ document.querySelector('#create-form').onsubmit=async e=>{
   const button=document.querySelector('#create-submit');button.disabled=true;
   document.querySelector('#create-error').textContent='';
   try {
-    const t=await api('/api/tournaments',{method:'POST',body:JSON.stringify({name:document.querySelector('#tournament-name').value,players:selectedPlayers,boards:Number(document.querySelector('[name=boards]:checked').value)})});
+    const t=await api('/api/tournaments',{method:'POST',body:JSON.stringify({name:document.querySelector('#tournament-name').value,players:selectedPlayers,boards:Number(document.querySelector('[name=boards]:checked').value),game_settings:readGameSettings()})});
     dialog.close();state.tab='matches';state.board='';state.pending=false;location.hash=`tournament/${t.id}`;toast('Turnier erstellt.');
   } catch(error) {document.querySelector('#create-error').textContent=error.message;} finally {button.disabled=false;}
 };
@@ -202,6 +205,10 @@ main.addEventListener('click',async e=>{
     document.querySelectorAll('[data-tab]').forEach(b=>{b.classList.toggle('selected',b.dataset.tab===state.tab);b.setAttribute('aria-selected',b.dataset.tab===state.tab);});
     renderDetailContent();
   }
+  if(el.matches('[data-automation]')) {
+    el.disabled=true;
+    try{state.tournament=await integrationApi(`/api/tournaments/${state.tournament.id}/automation`,{enabled:!state.tournament.autodarts_enabled});renderDetail();toast(state.tournament.autodarts_enabled?'Autodarts-Automatik aktiv.':'Autodarts-Automatik pausiert.');}catch(error){toast(error.message);el.disabled=false;}
+  }
   if(el.matches('[data-clear]'))saveScore(el.closest('form'),true);
   if(el.matches('[data-refresh]')){await route();toast('Ansicht aktualisiert.');}
   if(el.matches('[data-delete]')) {
@@ -230,3 +237,16 @@ main.addEventListener('click',async e=>{
 window.addEventListener('hashchange',()=>{state.tab='matches';state.board='';state.pending=false;route();});
 document.querySelector('#today').textContent=new Date().toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'long',year:'numeric'});
 route();
+
+// Refresh only automated, read-only views. Manual score inputs keep their unsaved values.
+let automaticRefresh=false;
+setInterval(async()=>{
+  const id=state.tournament?.id;
+  if(automaticRefresh || document.hidden || !state.tournament?.autodarts_enabled || location.hash!==`#tournament/${id}`)return;
+  automaticRefresh=true;
+  const version=routeVersion;
+  try{
+    const current=await api(`/api/tournaments/${id}`);
+    if(version===routeVersion && state.tournament?.id===id && state.tournament.autodarts_enabled){state.tournament=current;renderDetail();}
+  }catch{}finally{automaticRefresh=false;}
+},5000);

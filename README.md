@@ -29,12 +29,13 @@ Autodarts-Account-Portal ist eine getrennte Anwendung.
 - Schutz vor Überschreiben eines inzwischen geänderten Ergebnisses: Bei einem
   Konflikt die Ansicht aktualisieren und das Ergebnis erneut prüfen.
 
-Ergebnisse sind ganze Zahlen von 0 bis 999. Keine Unentschieden, keine festgelegte
-Best-of-Regel. Einen Best-of-Modus vereinbart ihr wie bisher selbst.
-Die Oberfläche aktualisiert nach dem Speichern. Auf weiteren Geräten mit
-„Aktualisieren“ den neuesten Stand laden. Eingaben vor einem Ansichtswechsel
-speichern. Die App startet keine Autodarts-Spiele. Neue Installationen starten ohne Turniere.
-Bestehende Daten im Docker-Volume bleiben bei Updates erhalten.
+Manuelle Ergebnisse sind ganze Zahlen von 0 bis 999 ohne Unentschieden.
+Für Autodarts gelten die eingestellten X01-Regeln (Best of / First to, Legs,
+Startpunkte und In/Out). Bull-off ist immer aus. Über Board-Scripts sind private
+Lobbys, Einladungen und automatische Ergebnisübernahme möglich. Einrichtung:
+[AUTODARTS.md](AUTODARTS.md). Während der Automatik aktualisiert sich die Ansicht
+alle fünf Sekunden; manuelle Eingaben sind gesperrt. Neue Installationen starten
+ohne Turniere. Bestehende Daten im Docker-Volume bleiben bei Updates erhalten.
 
 ## GitHub und Docker auf dem Server
 
