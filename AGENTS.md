@@ -16,3 +16,8 @@ final winners. Keep score changes explicit and retain import provenance.
 Run `python -m pytest -q` and `node --check dartabend/static/app.js` before pushing.
 GitHub Actions tests changes and publishes the Docker image from main. Keep
 `compose.server.yaml` and the deployment instructions consistent with that image.
+
+GitHub uploads can use the connected GitHub plugin when local Git credentials
+are unavailable. After a remote commit, fetch and align local Git history without
+overwriting uncommitted user changes. Never request or store a personal token
+when the connected plugin can perform the upload.

@@ -56,6 +56,7 @@ jobs:
             type=sha,format=long
             type=semver,pattern={{version}}
       - name: Build and publish
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -65,3 +66,22 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+      - name: Verify container and persistent history
+        env:
+          IMAGE: ${{ steps.image.outputs.name }}@${{ steps.build.outputs.digest }}
+        run: |
+          docker pull "$IMAGE"
+          trap 'docker logs turnierplaner-smoke; docker rm -f turnierplaner-smoke; docker volume rm turnierplaner-smoke-data' EXIT
+          docker run -d --name turnierplaner-smoke -v turnierplaner-smoke-data:/data "$IMAGE"
+          verify() {
+            for attempt in $(seq 1 30); do
+              if docker exec turnierplaner-smoke python -c "import json, urllib.request; data=json.load(urllib.request.urlopen('http://127.0.0.1:8000/api/tournaments', timeout=2)); assert len(data)==10; assert sum(t['total'] for t in data)==113"; then
+                return 0
+              fi
+              sleep 2
+            done
+            return 1
+          }
+          verify
+          docker restart turnierplaner-smoke
+          verify
