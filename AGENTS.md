@@ -6,8 +6,9 @@ Work only in this repository unless the user asks for changes elsewhere.
 The user has requested that the GitHub repository stay current. After completing
 future user-requested code changes, run the relevant tests, commit the scoped
 changes, and push them to this repository. Never upload databases, backups,
-credentials or unrelated files. The authorized historical data is bundled in
-`dartabend/history.json`; preserve it and the idempotent import behavior.
+credentials or unrelated files. Historical tournament data must not be bundled
+in the repository or Docker image. Imports are opt-in via TOURNAMENT_HISTORY;
+preserve idempotency and deletion markers so deleted imports do not return.
 
 Preserve the clean blue Dartfreunde Platten design, German UI, and round-robin
 rules. Missing historical results remain unknown; do not manufacture scores or

@@ -3,7 +3,7 @@ from itertools import combinations
 import pytest
 from fastapi.testclient import TestClient
 
-from dartabend.main import app, standings
+from dartabend.main import app, standings, database
 from dartabend.scheduler import spielplan_erstellen
 
 
@@ -118,3 +118,43 @@ def test_shortcuts_use_saved_history_without_case_duplicates(client):
     assert names[-2:] == ['Neuer Spieler', 'Zoe']
     with TestClient(app) as restarted:
         assert restarted.get('/api/players').json() == names
+
+
+def test_delete_archive_removes_children_and_survives_restart(client):
+    target=create(client, ['Unique Player', 'Other Player'])
+    other=create(client)
+    url=f"/api/tournaments/{target['id']}"
+    match=target['matches'][0]
+    client.put(url+f"/matches/{match['id']}",json={'score1':3,'score2':1,'revision':0})
+    assert client.post(url+'/finish').status_code==200
+    assert client.delete(url).json()=={'deleted':target['id']}
+    assert client.get(url).status_code==404
+    assert client.delete(url).status_code==404
+    assert client.get('/api/tournaments').json()[0]['id']==other['id']
+    assert 'Unique Player' not in client.get('/api/players').json()
+    assert 'Muli' in client.get('/api/players').json()
+    with database() as db:
+        assert db.execute('SELECT COUNT(*) FROM matches WHERE tournament_id=?',(target['id'],)).fetchone()[0]==0
+        assert db.execute('SELECT COUNT(*) FROM players WHERE tournament_id=?',(target['id'],)).fetchone()[0]==0
+        assert not db.execute('PRAGMA foreign_key_check').fetchall()
+    with TestClient(app) as restarted:
+        assert restarted.get(url).status_code==404
+        assert restarted.get(f"/api/tournaments/{other['id']}").status_code==200
+
+
+def test_cannot_delete_active_or_reopened_tournament(client):
+    t=create(client,['A','B'])
+    url=f"/api/tournaments/{t['id']}"
+    assert client.delete(url).status_code==409
+    match=t['matches'][0]
+    client.put(url+f"/matches/{match['id']}",json={'score1':3,'score2':1,'revision':0})
+    client.post(url+'/finish')
+    client.post(url+'/reopen')
+    assert client.delete(url).status_code==409
+    assert client.get(url).json()['played']==1
+
+
+def test_new_installation_is_empty_without_history_setting(client, monkeypatch):
+    monkeypatch.delenv('TOURNAMENT_HISTORY')
+    with TestClient(app) as restarted:
+        assert restarted.get('/api/tournaments').json()==[]

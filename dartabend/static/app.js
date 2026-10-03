@@ -41,7 +41,7 @@ function renderCards() {
 function renderDetail() {
   const t=state.tournament;
   state.page=isArchived(t)?'archive':'active'; setNav();
-  main.innerHTML=`<button class="back" data-back>← Zurück zu ${isArchived(t)?'Archiv':'Turnieren'}</button><div class="page-heading detail-heading"><div><span class="eyebrow">DARTFREUNDE PLATTEN</span><h1>${esc(t.name)}</h1><p class="detail-meta">${date(t.created_at)} &nbsp;·&nbsp; ${t.players.length} Spieler &nbsp;·&nbsp; ${t.boards} Scheiben &nbsp;·&nbsp; Jeder gegen jeden</p></div><div class="detail-actions"><button class="button small" data-refresh>↻ Aktualisieren</button>${isArchived(t)?'<button class="button small" data-reopen>Für Korrektur öffnen</button>':`<button class="button small ${t.played===t.total?'primary':''}" data-finish ${t.played!==t.total?'disabled title="Erst alle Spiele eintragen"':''}>✓ Turnier abschließen</button>`}</div></div>
+  main.innerHTML=`<button class="back" data-back>← Zurück zu ${isArchived(t)?'Archiv':'Turnieren'}</button><div class="page-heading detail-heading"><div><span class="eyebrow">DARTFREUNDE PLATTEN</span><h1>${esc(t.name)}</h1><p class="detail-meta">${date(t.created_at)} &nbsp;·&nbsp; ${t.players.length} Spieler &nbsp;·&nbsp; ${t.boards} Scheiben &nbsp;·&nbsp; Jeder gegen jeden</p></div><div class="detail-actions"><button class="button small" data-refresh>↻ Aktualisieren</button>${isArchived(t)?'<button class="button small" data-reopen>Für Korrektur öffnen</button><button class="button small danger" data-delete>Turnier löschen</button>':`<button class="button small ${t.played===t.total?'primary':''}" data-finish ${t.played!==t.total?'disabled title="Erst alle Spiele eintragen"':''}>✓ Turnier abschließen</button>`}</div></div>
   ${t.source_file?`<div class="finished-note">Excel-Import: ${esc(t.source_file)}${t.played<t.total?`<br>${t.total-t.played} Spiele ohne Ergebnis. Die Tabelle zeigt den erfassten Zwischenstand.`:isArchived(t)?`<br>1. Platz: <strong>${t.standings.filter(p=>p.rank===1).map(p=>esc(p.name)).join(' / ')}</strong>`:''}${(t.source_notes||[]).map(note=>`<br>${esc(note)}`).join('')}</div>`:isArchived(t)?`<div class="finished-note">Abgeschlossen am ${date(t.finished_at)} · 1. Platz: <strong>${t.standings.filter(p=>p.rank===1).map(p=>esc(p.name)).join(' / ')}</strong></div>`:''}
   <div class="detail-progress"><div class="progress"><span style="width:${percent(t)}%"></span></div><span>${t.played} / ${t.total} Spiele abgeschlossen</span></div>
   <div class="tabs" role="tablist" aria-label="Turnieransichten">${[['matches','Spielplan'],['table','Tabelle'],['players','Spieler & Verteilung']].map(([id,label])=>`<button role="tab" aria-selected="${state.tab===id}" class="tab ${state.tab===id?'selected':''}" data-tab="${id}">${label}</button>`).join('')}</div><section id="detail-content"></section>`;
@@ -203,11 +203,24 @@ main.addEventListener('click',async e=>{
   }
   if(el.matches('[data-clear]'))saveScore(el.closest('form'),true);
   if(el.matches('[data-refresh]')){await route();toast('Ansicht aktualisiert.');}
+  if(el.matches('[data-delete]')) {
+    const tournament=state.tournament;
+    if(!tournament || !isArchived(tournament))return;
+    if(!window.confirm(`„${tournament.name}“ endgültig löschen?\nAlle Spiele und Ergebnisse dieses Turniers werden entfernt.`))return;
+    el.disabled=true;
+    try {
+      await api(`/api/tournaments/${tournament.id}`,{method:'DELETE'});
+      state.tournament=null;state.page='archive';
+      await loadList();
+      if(location.hash==='#archive')renderList();else location.hash='archive';
+      toast('Turnier gelöscht.');
+    } catch(error){toast(error.message);el.disabled=false;}
+  }
   if(el.matches('[data-finish],[data-reopen]')) {
     el.disabled=true;
     try {
       state.tournament=await api(`/api/tournaments/${state.tournament.id}/${el.matches('[data-finish]')?'finish':'reopen'}`,{method:'POST'});
-      await loadList();renderDetail();toast(state.tournamenisArchived(t)?'Turnier im Archiv gespeichert.':'Turnier für Korrekturen geöffnet.');
+      await loadList();renderDetail();toast(isArchived(state.tournament)?'Turnier im Archiv gespeichert.':'Turnier für Korrekturen geöffnet.');
     } catch(error){toast(error.message);el.disabled=false;}
   }
 });

@@ -64,7 +64,8 @@ def init_database():
         db.execute('UPDATE tournaments SET archived_at=finished_at WHERE finished_at IS NOT NULL AND archived_at IS NULL')
         db.execute('CREATE UNIQUE INDEX IF NOT EXISTS tournament_source ON tournaments(source_sha256)')
         db.execute('PRAGMA user_version = 2')
-        history = Path(os.environ.get('TOURNAMENT_HISTORY', str(Path(__file__).parent / 'history.json')))
+        db.execute('CREATE TABLE IF NOT EXISTS deleted_imports (source_sha256 TEXT PRIMARY KEY)')
+        history = Path(os.environ.get('TOURNAMENT_HISTORY', ''))
         if history.is_file():
             import_history(db, history)
 
@@ -255,3 +256,18 @@ def reopen_tournament(tournament_id: str):
         get_tournament(db, tournament_id)
         db.execute('UPDATE tournaments SET finished_at=NULL,archived_at=NULL WHERE id=?', (tournament_id,))
         return detail(db, tournament_id)
+
+
+@app.delete('/api/tournaments/{tournament_id}')
+def delete_tournament(tournament_id: str):
+    with database() as db:
+        db.execute('BEGIN IMMEDIATE')
+        t = get_tournament(db, tournament_id)
+        if not t['archived_at'] and not t['finished_at']:
+            raise HTTPException(409, 'Nur Turniere im Archiv können gelöscht werden.')
+        if t['source_sha256']:
+            db.execute('INSERT OR IGNORE INTO deleted_imports(source_sha256) VALUES(?)', (t['source_sha256'],))
+        db.execute('DELETE FROM matches WHERE tournament_id=?', (tournament_id,))
+        db.execute('DELETE FROM players WHERE tournament_id=?', (tournament_id,))
+        db.execute('DELETE FROM tournaments WHERE id=?', (tournament_id,))
+    return {'deleted': tournament_id}

@@ -71,20 +71,28 @@ def test_invalid_batch_writes_nothing(db_path, tmp_path):
         assert db.execute('SELECT COUNT(*) FROM tournaments').fetchone()[0]==0
 
 
-def test_bundled_history_is_complete_and_startup_is_repeatable(db_path, monkeypatch):
-    history=Path(__file__).parents[1]/'dartabend'/'history.json'
+def test_opt_in_history_startup_and_deletion_are_repeatable(db_path, monkeypatch, tmp_path):
+    history=tmp_path/'history.json'
+    history.write_text(json.dumps([source_tournament()]))
     monkeypatch.setenv('TOURNAMENT_HISTORY',str(history))
+    with TestClient(app) as client:
+        tournaments=client.get('/api/tournaments').json()
+        assert len(tournaments)==1
+        tournament_id=tournaments[0]['id']
+        assert client.delete('/api/tournaments/'+tournament_id).status_code==200
     for _ in range(2):
         with TestClient(app) as client:
-            tournaments=client.get('/api/tournaments').json()
-            assert len(tournaments)==10
-            assert sum(t['total'] for t in tournaments)==113
-            assert sum(t['played'] for t in tournaments)==72
-            assert sum(t['played']<t['total'] for t in tournaments)==4
-            assert all(t['archived_at'] for t in tournaments)
-            corrected=next(t for t in tournaments if '09.07.2026 · 18:22' in t['name'])
-            full=client.get('/api/tournaments/'+corrected['id']).json()
-            match=next(m for m in full['matches'] if m['number']==10)
-            assert (match['score1'],match['score2'])==(0,1)
-            assert full['source_notes']
-            assert 'Neidi' in client.get('/api/players').json()
+            assert client.get('/api/tournaments').json()==[]
+    with database() as db:
+        assert db.execute('SELECT COUNT(*) FROM deleted_imports').fetchone()[0]==1
+
+
+def test_default_start_preserves_existing_imports_without_seeding(db_path, monkeypatch, tmp_path):
+    history=tmp_path/'history.json'
+    history.write_text(json.dumps([source_tournament()]))
+    with database() as db:
+        tournament_id=import_history(db,history)['imported'][0]
+    monkeypatch.delenv('TOURNAMENT_HISTORY')
+    with TestClient(app) as client:
+        assert len(client.get('/api/tournaments').json())==1
+        assert client.get('/api/tournaments/'+tournament_id).status_code==200

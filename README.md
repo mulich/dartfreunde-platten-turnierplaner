@@ -20,6 +20,7 @@ Autodarts-Account-Portal ist eine getrennte Anwendung.
   Leg-Differenz. Vollständig gleiche Werte teilen sich den Rang.
 - Turniere nach dem letzten Ergebnis abschließen und im Archiv nachsehen.
   Für Korrekturen lassen sich abgeschlossene Turniere wieder öffnen.
+- Archivierte Turniere mit Sicherheitsabfrage endgültig löschen.
 - Alle Daten bleiben in einer SQLite-Datenbank gespeichert; kein Excel notwendig.
 - Verteilung der Scheiben und Anwürfe je Spieler ansehen.
 - Schutz vor Überschreiben eines inzwischen geänderten Ergebnisses: Bei einem
@@ -29,8 +30,8 @@ Ergebnisse sind ganze Zahlen von 0 bis 999. Keine Unentschieden, keine festgeleg
 Best-of-Regel. Einen Best-of-Modus vereinbart ihr wie bisher selbst.
 Die Oberfläche aktualisiert nach dem Speichern. Auf weiteren Geräten mit
 „Aktualisieren“ den neuesten Stand laden. Eingaben vor einem Ansichtswechsel
-speichern. Die App startet keine Autodarts-Spiele. Die zehn bereitgestellten
-Excel-Turniere sind als historische Daten enthalten.
+speichern. Die App startet keine Autodarts-Spiele. Neue Installationen starten ohne Turniere.
+Bestehende Daten im Docker-Volume bleiben bei Updates erhalten.
 
 ## GitHub und Docker auf dem Server
 
@@ -142,30 +143,24 @@ HTML/CSS/JavaScript ohne Frontend-Build. Grundlagen:
 [FastAPI-Container](https://fastapi.tiangolo.com/deployment/docker/) und
 [SQLite in Python](https://docs.python.org/3/library/sqlite3.html).
 
-## Importierte Turniere
+## Historische Turniere und Löschen
 
-Die zehn bereitgestellten Excel-Dateien vom 14.06. bis 03.09.2026 sind in
-`dartabend/history.json` extrahiert. Beim Start werden sie einmalig in die
-Datenbank importiert, auch bei einem neuen Docker-Volume. Der SHA-256-Wert der
-Quelldatei verhindert Duplikate und schützt spätere Ergebniskorrekturen vor
-Überschreiben durch erneute Starts. Bestehende Turniere bleiben erhalten.
+Historische Turnierdaten werden nicht mehr im Repository oder Docker-Image
+mitgeliefert und beim normalen Start nicht importiert. Bereits importierte
+Turniere bleiben in deiner bestehenden SQLite-Datenbank erhalten.
 
-Der Import übernimmt Datum und Uhrzeit aus dem Dateinamen (Europe/Berlin),
-Spielerreihenfolge, Paarungen, Anwürfe, Scheiben, Runden, Durchgänge und die
-eingetragenen Legs. Excel-Formeln werden nicht ausgeführt. Die Website
-berechnet die Tabelle selbst aus den Spielergebnissen.
+Zum Löschen im Archiv das betreffende Turnier öffnen und „Turnier löschen“
+auswählen. Nach Bestätigung werden das Turnier, seine Spielerzuordnungen und
+alle zugehörigen Spiele und Ergebnisse endgültig gelöscht. Andere Turniere
+bleiben erhalten. Laufende Turniere können nicht gelöscht werden.
 
-Alle zehn Turniere liegen im Archiv: sechs mit vollständigen Ergebnissen,
-vier mit fehlenden Ergebnissen. Fehlende Ergebnisse bleiben leer und erzeugen
-keinen Sieger. Über „Für Korrektur öffnen“ können sie ergänzt werden.
-Archivierungszeitpunkt und tatsächliches Turnierende sind getrennt: Beim
-Import wird kein unbekannter Abschlusszeitpunkt erfunden.
+Die acht vorbelegten Spieler-Shortcuts bleiben verfügbar. Weitere Namen stammen
+aus den noch gespeicherten Turnieren. Gelöschte Imports werden als Fingerabdruck
+vermerkt, damit sie auch bei einem ausdrücklich eingerichteten erneuten Import
+nicht wieder erscheinen.
 
-Im Turnier vom 09.07.2026 um 18:22 wurde Spiel 10 (Schlatho gegen Swobi) auf
-ausdrücklichen Wunsch von −1:1 auf 0:1 korrigiert. Die Änderung wird am Turnier
-angezeigt, die Excel-Quelldatei bleibt unverändert.
-
-Die Ausleseroutine liegt in `scripts/extract_excel_history.py` und benötigt
-`openpyxl` nur zum Auslesen. Die laufende Web-App benötigt keine Excel-Bibliothek.
-`TOURNAMENT_HISTORY` kann auf eine andere extrahierte JSON-Datei gesetzt werden;
-ein leerer Wert deaktiviert den automatischen Import (z. B. für Tests).
+Die optionale Ausleseroutine `scripts/extract_excel_history.py` benötigt
+`openpyxl`. Ein Import erfolgt nur, wenn `TOURNAMENT_HISTORY` ausdrücklich auf
+eine extrahierte JSON-Datei gesetzt wird. Die laufende App benötigt keine
+Excel-Bibliothek. Frühere Git-Commits und ältere Image-Versionen können die
+ursprünglich veröffentlichten Daten weiterhin enthalten.

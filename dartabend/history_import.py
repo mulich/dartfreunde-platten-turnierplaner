@@ -58,8 +58,9 @@ def import_history(db, path: Path):
     try:
         for t in tournaments:
             existing = db.execute('SELECT id FROM tournaments WHERE source_sha256=?', (t['source_sha256'],)).fetchone()
-            if existing:
-                skipped.append(existing['id'])
+            deleted = db.execute('SELECT source_sha256 FROM deleted_imports WHERE source_sha256=?', (t['source_sha256'],)).fetchone()
+            if existing or deleted:
+                skipped.append(existing['id'] if existing else str(uuid5(NAMESPACE_URL, 'dartabend:excel:' + t['source_sha256'])))
                 continue
             tournament_id = str(uuid5(NAMESPACE_URL, 'dartabend:excel:' + t['source_sha256']))
             db.execute('''INSERT INTO tournaments

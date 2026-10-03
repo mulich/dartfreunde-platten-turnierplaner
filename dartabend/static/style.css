@@ -252,3 +252,6 @@ dialog{padding:22px}
 .add-player-row .button{padding:8px;font-size:11px}
 .brand small{font-size:7px}
 }
+
+.button.danger{color:#ffaaaa;border-color:#804454;background:transparent}
+.button.danger:hover{background:#492c3a}
