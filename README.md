@@ -25,6 +25,12 @@ Autodarts-Account-Portal ist eine getrennte Anwendung.
   bleiben als Zwischenstand im Archiv. Abgebrochene Turniere lassen sich fortsetzen.
 - Tabelle mit Medaillen für die Plätze 1–3, hervorgehobenen Punkten und Leg-Differenz.
 - Archivierte Turniere mit Sicherheitsabfrage endgültig löschen.
+- Statistik über das Archiv: Medaillen, Turniersiege, Spielsiege, Legs,
+  Leg-Differenz, Sieg- und Legquote. Bestenlisten und sortierbare Spielertabelle.
+  Bekannte Ergebnisse unvollständiger Importe zählen mit; Medaillen nur bei
+  vollständiger Wertung. Laufende und abgebrochene Turniere zählen nicht.
+  Umbenannte Spieler werden über ihr Profil zusammengeführt; Korrekturen und
+  gelöschte Turniere ändern die Statistik sofort.
 - Alle Daten bleiben in einer SQLite-Datenbank gespeichert; kein Excel notwendig.
 - Verteilung der Scheiben und Anwürfe je Spieler ansehen.
 - Schutz vor Überschreiben eines inzwischen geänderten Ergebnisses: Bei einem

@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, StrictInt, model_validator
 
-from . import player_profiles
+from . import player_profiles, statistics
 from .scheduler import spielplan_erstellen
 from .history_import import import_history
 from .integration import GameSettings, initialize as init_integration, install as install_integration
@@ -191,6 +191,12 @@ def list_tournaments():
                 t['winner'] = ' / '.join(p['name'] for p in detail(db, t['id'])['standings'] if p['rank'] == 1)
             result.append(t)
         return result
+
+
+@app.get('/api/statistics')
+def archive_statistics():
+    with database() as db:
+        return statistics.aggregate(db, standings)
 
 
 @app.get('/api/players')

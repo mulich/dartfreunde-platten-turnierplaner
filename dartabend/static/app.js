@@ -136,6 +136,7 @@ async function route() {
   try {
     await loadList();
     if(version!==routeVersion)return;
+    if(location.hash==='#statistics'){state.tournament=null;state.page='statistics';setNav();await renderStatistics();return;}
     if(location.hash==='#players'){state.tournament=null;state.page='players';setNav();await renderPlayers();return;}
     if(location.hash==='#integration'){state.page='integration';setNav();await renderIntegration();return;}
     if(match) {
@@ -150,7 +151,7 @@ async function route() {
     main.innerHTML=`<div class="load-error"><h3>Die Ansicht konnte nicht geladen werden.</h3><p>${esc(error.message)}</p><button class="button" data-retry>Erneut versuchen</button><a class="button" href="#">Zur Übersicht</a></div>`;
   }
 }
-document.querySelectorAll('[data-page]').forEach(el=>el.onclick=()=>{state.search='';location.hash=el.dataset.page==='players'?'players':el.dataset.page==='integration'?'integration':el.dataset.page==='archive'?'archive':'';});
+document.querySelectorAll('[data-page]').forEach(el=>el.onclick=()=>{state.search='';location.hash=el.dataset.page==='statistics'?'statistics':el.dataset.page==='players'?'players':el.dataset.page==='integration'?'integration':el.dataset.page==='archive'?'archive':'';});
 document.querySelector('#close-dialog').onclick=()=>dialog.close();
 document.querySelector('#add-player').onclick=addTypedPlayer;
 document.querySelector('#player-name').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addTypedPlayer();}};

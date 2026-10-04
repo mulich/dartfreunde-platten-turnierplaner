@@ -27,6 +27,7 @@ jobs:
       - name: Check frontend syntax
         run: |
           node --check dartabend/static/turnier-board.user.js
+          node --check dartabend/static/statistics.js
           node --check dartabend/static/app.js
           node --check dartabend/static/integration.js
           node --check dartabend/static/players.js
