@@ -25,6 +25,7 @@ Autodarts-Account-Portal ist eine getrennte Anwendung.
   bleiben als Zwischenstand im Archiv. Abgebrochene Turniere lassen sich fortsetzen.
 - Tabelle mit Medaillen für die Plätze 1–3, hervorgehobenen Punkten und Leg-Differenz.
 - Archivierte Turniere mit Sicherheitsabfrage endgültig löschen.
+- Medaillenspiegel: Gold = 3 Punkte, Silber = 2 Punkte, Bronze = 1 Punkt.
 - Statistik über das Archiv: Medaillen, Turniersiege, Spielsiege, Legs,
   Leg-Differenz, Sieg- und Legquote. Bestenlisten und sortierbare Spielertabelle.
   Bekannte Ergebnisse unvollständiger Importe zählen mit; Medaillen nur bei

@@ -44,12 +44,13 @@ def aggregate(db, standings):
             if finished and entry['rank'] <= 3:
                 player[('gold','silver','bronze')[entry['rank']-1]] += 1
     for player in players.values():
+        player['medal_points'] = 3 * player['gold'] + 2 * player['silver'] + player['bronze']
         player['medals'] = player['gold'] + player['silver'] + player['bronze']
         player['difference'] = player['legs_for'] - player['legs_against']
         player['win_rate'] = round(100 * player['wins'] / player['played'],1) if player['played'] else None
         legs = player['legs_for'] + player['legs_against']
         player['leg_win_rate'] = round(100 * player['legs_for'] / legs,1) if legs else None
-    result = sorted(players.values(),key=lambda p:(-p['medals'],-p['gold'],-p['silver'],-p['bronze'],p['name'].casefold()))
+    result = sorted(players.values(),key=lambda p:(-p['medal_points'],-p['gold'],-p['silver'],-p['bronze'],p['name'].casefold()))
     return dict(summary=dict(tournaments=len(eligible),complete_tournaments=complete,
         incomplete_tournaments=len(eligible)-complete,excluded_aborted=sum(bool(t['aborted_at']) for t in archived),
         players=len(result),matches=recorded,missing_results=missing,legs=sum(p['legs_for'] for p in result)),players=result)

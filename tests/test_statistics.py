@@ -45,6 +45,7 @@ def test_aggregate_matches_legs_rates_and_medals(client):
     stats={p['name']:p for p in data['players']}
     a=stats['Alice']
     assert (a['played'],a['wins'],a['losses'],a['legs_for'],a['legs_against'],a['difference'])==(2,1,1,2,4,-2)
+    assert a['medal_points']==5
     assert a['win_rate']==50 and a['leg_win_rate']==33.3
     assert (a['gold'],a['silver'],a['bronze'],a['medals'],a['tournaments'])==(1,1,0,2,2)
     assert sum(p['wins'] for p in data['players'])==data['summary']['matches']
@@ -60,7 +61,7 @@ def test_incomplete_import_counts_known_results_without_medals(client):
     assert data['summary']['missing_results']==2
     assert data['summary']['matches']==1
     assert data['summary']['legs']==2
-    assert all(p['medals']==0 for p in data['players'])
+    assert all(p['medals']==p['medal_points']==0 for p in data['players'])
     assert players(client)['Carol']['win_rate'] is None
     assert players(client)['Carol']['leg_win_rate'] is None
     assert players(client)['Carol']['played']==0
@@ -79,7 +80,7 @@ def test_shared_places_award_shared_medals(client):
     tournament(client,('Alice','Bob','Carol'),scores)
     stats=players(client)
     assert all(p['gold']==1 and p['silver']==p['bronze']==0 for p in stats.values())
-    assert all(p['medals']==1 for p in stats.values())
+    assert all(p['medals']==1 and p['medal_points']==3 for p in stats.values())
 
 
 def test_renames_and_hidden_profiles_preserve_cumulative_results(client):
@@ -108,3 +109,16 @@ def test_reopen_correction_and_delete_recalculate_statistics(client):
     assert client.delete(path).status_code==200
     assert client.get('/api/statistics').json()['summary']['tournaments']==0
     assert players(client)=={}
+
+
+def test_medal_points_rank_above_medal_count(client):
+    # One gold (3 points) ranks above two bronze medals (2 points).
+    for names in [('Alice','Bob','Carol'),('Dave','Bob','Carol')]:
+        scores={frozenset((a,b)):{a:2,b:0} for i,a in enumerate(names) for b in names[i+1:]}
+        tournament(client,names,scores)
+    data=client.get('/api/statistics').json()
+    stats={p['name']:p for p in data['players']}
+    assert stats['Alice']['medals']==1 and stats['Alice']['medal_points']==3
+    assert stats['Bob']['medals']==2 and stats['Bob']['medal_points']==4
+    assert stats['Carol']['medals']==2 and stats['Carol']['medal_points']==2
+    assert [p['name'] for p in data['players']]==['Bob','Alice','Dave','Carol']
