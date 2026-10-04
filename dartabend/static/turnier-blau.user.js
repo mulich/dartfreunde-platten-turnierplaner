@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dartfreunde Platten – Turnier-Board Blau
 // @namespace    dartfreunde-platten-turnierplaner
-// @version      2.0.0
+// @version      2.0.1
 // @description  Private Turnier-Lobbys, Einladungen und Ergebnisübernahme für Blau.
 // @match        https://play.autodarts.com/*
 // @run-at       document-start
@@ -54,9 +54,29 @@
     return players.length === 2 && players.every(p => !p.isPending && !p.cpuPPR && p.boardId === BOARD_ID)
       && job.user_ids.every((id, index) => players[index]?.userId === id);
   }
+  function parseResponse(response, url) {
+    const service = new URL(url).origin === SERVER ? 'planner' : 'autodarts';
+    const label = service === 'planner' ? 'Turnierplaner' : 'Autodarts';
+    const fail = text => { const error=new Error(`${label}: HTTP ${response.status} – ${text}`); error.status=response.status; error.service=service; throw error; };
+    const successful=response.status>=200 && response.status<300;
+    const text=typeof response.responseText==='string'?response.responseText.trim():'';
+    if(response.status===401 && /(?:^|\r?\n)www-authenticate:\s*Basic\b/i.test(response.responseHeaders || '')) {
+      fail(service==='planner'?'Reverse-Proxy-Passwortschutz blockiert /api/bridge/. Dort Basic-Auth deaktivieren; Board-Schlüssel bleibt erforderlich.':'Zusätzlicher Passwortschutz blockiert die API.');
+    }
+    let body;
+    if(response.response && typeof response.response==='object')body=response.response;
+    else if(!text && successful)return null;
+    else {
+      try{body=JSON.parse(text);}catch {
+        fail(/^(?:<!doctype|<html|<head|<body)/i.test(text)?'HTML-Seite statt JSON. Passwortschutz, Weiterleitung und Proxy-Ziel prüfen.':'Keine JSON-Antwort. Proxy-Ziel und Serverstatus prüfen.');
+      }
+    }
+    if(!successful)fail(typeof body?.detail==='string'?body.detail:body?.error?.message || 'Anfrage abgelehnt.');
+    return body;
+  }
   // Pure adapters are exercised using fixtures; requiring this file never enables automation.
   if (typeof module === 'object' && module.exports) {
-    module.exports = {resolvePlayers, finalResult, correctLobby};
+    module.exports = {resolvePlayers, finalResult, correctLobby, parseResponse};
     return;
   }
   const instance = crypto.randomUUID();
@@ -95,10 +115,7 @@
     return new Promise((resolve, reject) => GM_xmlhttpRequest({url, method, timeout:12000, anonymous:true,
       headers:{'Content-Type':'application/json', ...headers}, data:data===undefined?undefined:JSON.stringify(data),
       onload:r=>{
-        let body;try{body=r.responseText?JSON.parse(r.responseText):null;}catch{return reject(new Error('Unbekanntes Antwortformat.'))}
-        if(r.status>=200&&r.status<300)return resolve(body);
-        const error=new Error(typeof body?.detail==='string'?body.detail:body?.error?.message || `HTTP ${r.status}`);
-        error.status=r.status;reject(error);
+        try{resolve(parseResponse(r,url));}catch(error){reject(error);}
       }, onerror:()=>reject(new Error('Verbindung fehlgeschlagen.')), ontimeout:()=>reject(new Error('Zeitüberschreitung.'))
     }));
   }
@@ -201,6 +218,7 @@
       try{ready=await boardReady();}catch(error){show(error.message);}
       const reply=await planner('/api/bridge/poll',{ready,status:bearer?message:'Wartet auf Autodarts-Anmeldung'});
       if(reply.completed_match_id)GM_setValue(storage+'-last-match',reply.completed_match_id);
+      if(!reply || typeof reply!=='object' || !Object.hasOwn(reply,'job'))throw new Error('Turnierplaner: Board-Antwort unvollständig. Container-Version und Proxy-Ziel prüfen.');
       currentJob=reply.job;
       if(!currentJob){show(reply.message || (ready?'Wartet auf nächste Begegnung':bearer?'Scheibe belegt · bestehendes Spiel zuerst beenden':'Autodarts anmelden und Seite neu laden'));return;}
       if(currentJob.paused){show('Turnier-Automatik pausiert oder beendet');return;}
@@ -220,7 +238,7 @@
       if(job.phase==='playing')await watch(job);
       currentJob=job;
     } catch(error) {
-      if(error.status===401 && !String(error.message).includes('Board-Schlüssel'))bearer='';
+      if(error.status===401 && error.service==='autodarts')bearer='';
       show(error.message);
       if(currentJob)try{await planner(`/api/bridge/jobs/${currentJob.id}/state`,{phase:currentJob.phase,error:error.message.slice(0,240)});}catch{}
     } finally {ticking=false;}

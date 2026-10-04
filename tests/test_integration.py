@@ -189,3 +189,22 @@ def test_userscript_runtime_lobby_invitation_start_and_result():
     root=Path(__file__).resolve().parents[1]
     result=subprocess.run(['node','tests/bridge-flow.cjs'],cwd=root,capture_output=True,text=True)
     assert result.returncode==0,result.stdout+result.stderr
+
+
+def test_userscript_proxy_errors_distinguish_basic_auth_and_board_key():
+    script=Path(__file__).resolve().parents[1]/'dartabend/static/turnier-blau.user.js'
+    code=r'''
+    const assert=require('node:assert/strict');
+    const {parseResponse}=require(process.argv[1]);
+    const planner='https://turnier.mulich.de/api/bridge/poll';
+    const basic={status:401,responseHeaders:'Content-Type: text/html\r\nWWW-Authenticate: Basic realm="Authorization required"',responseText:'<html><h1>401 Authorization Required</h1></html>'};
+    assert.throws(()=>parseResponse(basic,planner),e=>e.status===401 && e.service==='planner' && e.message.includes('Reverse-Proxy-Passwortschutz') && e.message.includes('/api/bridge/'));
+    assert.throws(()=>parseResponse({status:401,responseText:JSON.stringify({detail:'Board-Schlüssel ungültig.'})},planner),e=>e.service==='planner'&&e.message.includes('Board-Schlüssel ungültig.')&&!e.message.includes('Basic-Auth'));
+    assert.throws(()=>parseResponse({...basic,status:200,responseHeaders:''},planner),/HTML-Seite statt JSON/);
+    assert.throws(()=>parseResponse({status:502,responseText:'Bad Gateway'},planner),/HTTP 502/);
+    assert.throws(()=>parseResponse({status:401,responseText:'{"detail":"Token expired"}'},'https://api.autodarts.com/bs/v0/boards/id'),e=>e.service==='autodarts' && e.status===401);
+    assert.deepEqual(parseResponse({status:200,responseText:'{"job":null}'},planner),{job:null});
+    assert.deepEqual(parseResponse({status:200,response:{job:null}},planner),{job:null});
+    assert.equal(parseResponse({status:204,responseText:''},'https://api.autodarts.com/gs/v0/lobbies/id/players/by-index/0'),null);
+    '''
+    subprocess.run(['node','-e',code,str(script)],check=True,capture_output=True,text=True)

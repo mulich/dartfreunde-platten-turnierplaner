@@ -31,6 +31,28 @@ ihren bisherigen Zugriffsschutz am Reverse Proxy. Ohne diese Variable funktionie
 der manuelle Planer weiter, die Autodarts-Verwaltung ist gesperrt. Datenvolume
 beibehalten; keine Datenbank oder Zugangsdaten nach GitHub hochladen.
 
+## Reverse Proxy mit zusätzlichem Passwortschutz
+
+Das Script sendet seinen Board-Schlüssel als `Authorization: Bearer …` an
+`https://turnier.mulich.de/api/bridge/`. Ein davor liegender HTTP-Basic-Passwortschutz
+kann diesen Header nicht zugleich für einen Proxy-Login verwenden. Er antwortet
+mit HTTP 401 und einer HTML-Seite, bevor der Turnierplaner erreicht wird.
+
+Nur für den Pfad **`/api/bridge/`** den zusätzlichen Proxy-Passwortschutz ausnehmen.
+Die Board-Endpunkte bleiben durch die zufälligen Board-Schlüssel geschützt. Die
+übrige Website und die Verwaltungsendpunkte behalten ihren bisherigen Schutz.
+In Nginx gehört `auth_basic off;` in die zuständige Location; das Proxy-Ziel bleibt
+der Turnier-Container und der ursprüngliche URL-Pfad muss erhalten bleiben.
+Den Authorization-Header an den Container weiterreichen. Referenz:
+https://nginx.org/en/docs/http/ngx_http_auth_basic_module.html#auth_basic
+
+Bei einer Proxy-Verwaltungsoberfläche eine gesonderte Weiterleitung für
+`/api/bridge/` mit demselben Ziel wie den Turnierplaner und ohne Basic-Auth einrichten.
+Nicht die ganze Website freigeben und nicht `/api/integration/` ausnehmen.
+Ein Aufruf ohne Board-Schlüssel muss anschließend eine JSON-Antwort
+`{"detail":"Board-Schlüssel ungültig."}` mit HTTP 401 liefern, keine HTML-Loginseite.
+Das ist die erwartete Antwort der Anwendung und bestätigt die Weiterleitung.
+
 ## Einmalige Einrichtung
 
 1. Auf jedem Scheiben-PC Tampermonkey installieren. Im Accountportal den Abschnitt
