@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dartfreunde Platten – Turnier-Board __BOARD_NAME__
 // @namespace    dartfreunde-platten-turnierplaner
-// @version      2.1.1
+// @version      2.1.2
 // @description  Private Turnier-Lobbys, Einladungen und Ergebnisübernahme für __BOARD_NAME__.
 // @match        https://play.autodarts.com/*
 // @run-at       document-start
@@ -291,12 +291,25 @@
     if(!document.body)return;
     panel=document.createElement('div');
     panel.style.cssText='position:fixed;bottom:12px;right:12px;z-index:9999;background:#142a40;color:#cce6ff;border:1px solid #395f80;border-radius:8px;padding:12px;font:12px system-ui;max-width:340px;box-shadow:0 4px 18px #0005';
-    const title=document.createElement('strong');title.textContent=`Turnierplaner · ${BOARD}`;
+    let collapsed=GM_getValue(storage+'-collapsed',true);
+    const title=document.createElement('button');title.type='button';
+    title.style.cssText='display:block;background:transparent;color:#cce6ff;border:0;padding:0;cursor:pointer;font:600 12px system-ui;line-height:20px';
+    const details=document.createElement('div');details.id='dfp-board-details-'+BOARD_ID;
+    title.setAttribute('aria-controls',details.id);
+    function renderFold() {
+      title.textContent=collapsed?`Darts · ${BOARD} ▸`:`Turnierplaner · ${BOARD} ▾`;
+      title.setAttribute('aria-label',collapsed?'Turnierfenster ausklappen':'Turnierfenster einklappen');
+      title.setAttribute('aria-expanded',String(!collapsed));
+      details.hidden=collapsed;details.style.display=collapsed?'none':'block';
+      panel.style.padding=collapsed?'5px 8px':'12px';
+    }
+    title.onclick=()=>{collapsed=!collapsed;GM_setValue(storage+'-collapsed',collapsed);renderFold();};
+
     const status=document.createElement('p');status.dataset.status='';status.style.cssText='margin:6px 0;overflow-wrap:anywhere';status.textContent=message;
     const setup=document.createElement('button');setup.textContent='Website anmelden';setup.onclick=configure;
     const pause=document.createElement('button');pause.textContent='Start / Pause';pause.onclick=toggle;
     for(const button of [setup,pause])button.style.cssText='background:#254b6a;color:#fff;border:1px solid #527795;border-radius:4px;padding:5px 8px;margin-right:6px;cursor:pointer';
-    panel.append(title,status,setup,pause);document.body.append(panel);
+    details.append(status,setup,pause);panel.append(title,details);renderFold();document.body.append(panel);
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});else mount();
   setInterval(tick,4000);

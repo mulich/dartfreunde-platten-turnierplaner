@@ -6,7 +6,7 @@ https://dartportal.mulich.de/
 ## Update
 
 Beide Container auf die neue Version aktualisieren und auf jedem PC das neue
-Scheiben-Script **2.1.1** installieren bzw. in Tampermonkey aktualisieren:
+Scheiben-Script **2.1.2** installieren bzw. in Tampermonkey aktualisieren:
 
 - Blau: https://dartportal.mulich.de/static/turnier-blau.user.js
 - Rot: https://dartportal.mulich.de/static/turnier-rot.user.js
@@ -81,6 +81,10 @@ ein bereits beanspruchter Board-Auftrag speichert seine Teilnehmerzuordnung fest
 | Blau | faa2cd5f-5d19-4e68-9749-1b7b95c753d4 |
 | Rot | ad381dc0-7e86-45a1-9fa8-61c8b18ec89b |
 | Schwarz | 6e390006-cdba-4ac5-b0bb-0e03eb880af6 |
+
+Das Script-Fenster startet eingeklappt als kleine Schaltfläche „Darts · Scheibe“.
+Mit einem Klick auf die Überschrift ein- oder ausklappen. Der Zustand bleibt pro
+Scheibe gespeichert; die Automatik läuft auch bei eingeklapptem Fenster weiter.
 
 ## Ablauf
 
