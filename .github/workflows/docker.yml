@@ -28,6 +28,7 @@ jobs:
         run: |
           node --check dartabend/static/app.js
           node --check dartabend/static/integration.js
+          node --check dartabend/static/players.js
           node --check dartabend/static/turnier-blau.user.js
           node --check dartabend/static/turnier-rot.user.js
           node --check dartabend/static/turnier-schwarz.user.js

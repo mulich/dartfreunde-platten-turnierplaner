@@ -54,12 +54,12 @@ function renderDetailContent() {
   const t=state.tournament;
   const content=document.querySelector('#detail-content');
   if(state.tab==='table') {
-    content.innerHTML=`<div class="standings-heading"><h3>Tabelle</h3><span class="badge">${t.aborted_at?'Abgebrochen · Zwischenstand':t.played<t.total?'Zwischenstand':'Alle Ergebnisse erfasst'}</span></div><div class="table-wrap standings-wrap"><table class="standings-table" aria-label="Turniertabelle"><thead><tr><th scope="col">Platz</th><th>Spieler</th><th>Punkte</th><th>Spiele</th><th>Siege</th><th>Niederlagen</th><th>Legs +</th><th>Legs −</th><th>Differenz</th></tr></thead><tbody>${t.standings.map(p=>`<tr class="${p.rank<=3?'podium podium-'+p.rank:''}"><td class="rank"><span class="rank-label">${p.rank<=3?`<span class="medal" aria-hidden="true">${['🥇','🥈','🥉'][p.rank-1]}</span>`:''}<span>${p.rank}</span></span></td><td class="standing-player">${esc(p.name)}</td><td class="points"><span class="points-pill">${p.points}</span></td><td>${p.played}</td><td>${p.wins}</td><td>${p.losses}</td><td>${p.legs_for}</td><td>${p.legs_against}</td><td class="${p.difference>0?'difference-positive':p.difference<0?'difference-negative':''}">${p.difference>0?'+':''}${p.difference}</td></tr>`).join('')}</tbody></table></div><p class="table-note">${t.aborted_at?'Abgebrochen · keine abschließende Wertung. ':''}${t.played<t.total?`Zwischenstand · ${t.total-t.played} Ergebnisse fehlen. `:''}Sieg = 2 Punkte · Sortierung: Punkte → gewonnene Legs → Leg-Differenz. Gleiche Werte teilen sich den Platz.</p>`;
+    content.innerHTML=`<div class="standings-heading"><h3>Tabelle</h3><span class="badge">${t.aborted_at?'Abgebrochen · Zwischenstand':t.played<t.total?'Zwischenstand':'Alle Ergebnisse erfasst'}</span></div><div class="table-wrap standings-wrap"><table class="standings-table" aria-label="Turniertabelle"><thead><tr><th scope="col">Platz</th><th>Spieler</th><th>Punkte</th><th>Spiele</th><th>Siege</th><th>Niederlagen</th><th>Legs +</th><th>Legs −</th><th>Differenz</th></tr></thead><tbody>${t.standings.map(p=>`<tr class="${p.rank<=3?'podium podium-'+p.rank:''}"><td class="rank"><span class="rank-label">${p.rank<=3?`<span class="medal" aria-hidden="true">${['🥇','🥈','🥉'][p.rank-1]}</span>`:''}<span>${p.rank}</span></span></td><td class="standing-player">${esc(p.name)} ${accountBadge(p.name)}</td><td class="points"><span class="points-pill">${p.points}</span></td><td>${p.played}</td><td>${p.wins}</td><td>${p.losses}</td><td>${p.legs_for}</td><td>${p.legs_against}</td><td class="${p.difference>0?'difference-positive':p.difference<0?'difference-negative':''}">${p.difference>0?'+':''}${p.difference}</td></tr>`).join('')}</tbody></table></div><p class="table-note">${t.aborted_at?'Abgebrochen · keine abschließende Wertung. ':''}${t.played<t.total?`Zwischenstand · ${t.total-t.played} Ergebnisse fehlen. `:''}Sieg = 2 Punkte · Sortierung: Punkte → gewonnene Legs → Leg-Differenz. Gleiche Werte teilen sich den Platz.</p>`;
     return;
   }
   if(state.tab==='players') {
     const boards=['Rot','Blau','Schwarz'].slice(0,t.boards);
-    content.innerHTML=`<div class="rule-note">Jeder spielt einmal gegen jeden. Die Scheiben und Anwürfe werden möglichst gleichmäßig verteilt. Spieler 1 wirft an. Bei ungerader Spielerzahl gibt es pro Runde eine Pause.</div><div class="table-wrap"><table><thead><tr><th>Spieler</th><th>Anwürfe</th>${boards.map(b=>`<th><i class="dot ${boardColor(b)}"></i>${b}</th>`).join('')}</tr></thead><tbody>${t.players.map(p=>`<tr><td>${esc(p)}</td><td>${t.matches.filter(m=>m.player1===p).length}</td>${boards.map(b=>`<td>${t.matches.filter(m=>m.board===b&&(m.player1===p||m.player2===p)).length}</td>`).join('')}</tr>`).join('')}</tbody></table></div><p class="table-note">Die Verteilung zählt alle geplanten Begegnungen.</p>`;
+    content.innerHTML=`<div class="rule-note">Jeder spielt einmal gegen jeden. Die Scheiben und Anwürfe werden möglichst gleichmäßig verteilt. Spieler 1 wirft an. Bei ungerader Spielerzahl gibt es pro Runde eine Pause.</div><div class="table-wrap"><table><thead><tr><th>Spieler</th><th>Anwürfe</th>${boards.map(b=>`<th><i class="dot ${boardColor(b)}"></i>${b}</th>`).join('')}</tr></thead><tbody>${t.players.map(p=>`<tr><td>${esc(p)} ${accountBadge(p)}</td><td>${t.matches.filter(m=>m.player1===p).length}</td>${boards.map(b=>`<td>${t.matches.filter(m=>m.board===b&&(m.player1===p||m.player2===p)).length}</td>`).join('')}</tr>`).join('')}</tbody></table></div><p class="table-note">Die Verteilung zählt alle geplanten Begegnungen.</p>`;
     return;
   }
   const matches=t.matches.filter(m=>(!state.board||m.board===state.board)&&(!state.pending||m.score1===null));
@@ -77,8 +77,8 @@ function matchCard(m) {
   const finished=isArchived(state.tournament) || state.tournament.autodarts_enabled;
   const played=m.score1!==null;
   return `<form class="match" data-match="${m.id}" data-revision="${m.revision}"><div class="match-top"><span class="board"><i class="dot ${boardColor(m.board)}"></i> Scheibe ${esc(m.board)}</span><span>Spiel ${m.number}</span></div>
-  <div class="player-line"><label class="player-name" for="score1-${m.id}">${esc(m.player1)}<span class="starter">ANWURF</span></label><input class="score" id="score1-${m.id}" name="score1" type="number" min="0" max="999" step="1" inputmode="numeric" aria-label="Legs ${esc(m.player1)}" value="${m.score1??''}" ${finished?'disabled':'required'}></div>
-  <div class="player-line"><label class="player-name" for="score2-${m.id}">${esc(m.player2)}</label><input class="score" id="score2-${m.id}" name="score2" type="number" min="0" max="999" step="1" inputmode="numeric" aria-label="Legs ${esc(m.player2)}" value="${m.score2??''}" ${finished?'disabled':'required'}></div>
+  <div class="player-line"><label class="player-name" for="score1-${m.id}">${esc(m.player1)} ${accountBadge(m.player1)}<span class="starter">ANWURF</span></label><input class="score" id="score1-${m.id}" name="score1" type="number" min="0" max="999" step="1" inputmode="numeric" aria-label="Legs ${esc(m.player1)}" value="${m.score1??''}" ${finished?'disabled':'required'}></div>
+  <div class="player-line"><label class="player-name" for="score2-${m.id}">${esc(m.player2)} ${accountBadge(m.player2)}</label><input class="score" id="score2-${m.id}" name="score2" type="number" min="0" max="999" step="1" inputmode="numeric" aria-label="Legs ${esc(m.player2)}" value="${m.score2??''}" ${finished?'disabled':'required'}></div>
   <div class="match-footer"><span class="${played?'winner-name':''}">${played?'✓ '+esc(m.score1>m.score2?m.player1:m.player2):state.tournament.autodarts_enabled?'Autodarts übernimmt Ergebnis':'Noch offen'}</span>${finished?'':`<span>${played?'<button type="button" class="clear-score" data-clear>Zurücksetzen</button>':''}<button class="button small" type="submit">Speichern</button></span>`}</div><p class="match-error" role="alert"></p></form>`;
 }
 let selectedPlayers = [];
@@ -87,8 +87,8 @@ let createVersion = 0;
 const playerKey = name => name.toLocaleLowerCase('de');
 function renderPlayerPicker() {
   const selected = new Set(selectedPlayers.map(playerKey));
-  document.querySelector('#player-shortcuts').innerHTML = shortcuts.map((name, index) => `<button type="button" class="player-shortcut ${selected.has(playerKey(name))?'chosen':''}" data-player-index="${index}" aria-label="${esc(name)} hinzufügen" ${selected.has(playerKey(name))?'disabled':''}>${selected.has(playerKey(name))?'✓':'＋'} ${esc(name)}</button>`).join('');
-  document.querySelector('#selected-players').innerHTML = selectedPlayers.length ? selectedPlayers.map((name, index) => `<span class="player-chip"><span>${esc(name)}</span><button type="button" data-remove-player="${index}" aria-label="${esc(name)} entfernen" title="Entfernen">×</button></span>`).join('') : '<span class="no-players">Keine Spieler ausgewählt</span>';
+  document.querySelector('#player-shortcuts').innerHTML = shortcuts.map((name, index) => `<button type="button" class="player-shortcut ${selected.has(playerKey(name))?'chosen':''}" data-player-index="${index}" aria-label="${esc(name)} hinzufügen" ${selected.has(playerKey(name))?'disabled':''}>${selected.has(playerKey(name))?'✓':'＋'} ${esc(name)} ${accountBadge(name)}</button>`).join('');
+  document.querySelector('#selected-players').innerHTML = selectedPlayers.length ? selectedPlayers.map((name, index) => `<span class="player-chip"><span>${esc(name)} ${accountBadge(name)}</span><button type="button" data-remove-player="${index}" aria-label="${esc(name)} entfernen" title="Entfernen">×</button></span>`).join('') : '<span class="no-players">Keine Spieler ausgewählt</span>';
   updatePlanSummary();
 }
 function addPlayer(name) {
@@ -114,7 +114,7 @@ async function showCreate() {
   document.querySelector('#shortcut-status').textContent='Spieler werden geladen …';
   dialog.showModal();
   try {
-    const names=await api('/api/players');
+    const [names,registry]=await Promise.all([api('/api/players'),api('/api/player-profiles')]);profiles=registry;
     if(version!==createVersion || !dialog.open)return;
     shortcuts=names;renderPlayerPicker();
     document.querySelector('#shortcut-status').textContent='';
@@ -127,7 +127,7 @@ function updatePlanSummary() {
   const n=selectedPlayers.length, boards=Number(document.querySelector('[name=boards]:checked').value);
   document.querySelector('#plan-summary').textContent=n<2?'Mindestens zwei Spieler auswählen.':`${n*(n-1)/2} ${n===2?'Begegnung':'Begegnungen'} · ${n%2?n:n-1} ${n===2?'Runde':'Runden'} · ${(n%2?n:n-1)*Math.ceil(Math.floor(n/2)/boards)} ${n===2?'Durchgang':'Durchgänge'}${n%2?' · mit Spielpausen':''}`;
 }
-async function loadList() { state.list=await api('/api/tournaments');setNav(); }
+async function loadList() { const result=await Promise.all([api('/api/tournaments'),api('/api/player-profiles')]);state.list=result[0];profiles=result[1];setNav(); }
 let routeVersion=0;
 async function route() {
   const version=++routeVersion;
@@ -136,6 +136,7 @@ async function route() {
   try {
     await loadList();
     if(version!==routeVersion)return;
+    if(location.hash==='#players'){state.tournament=null;state.page='players';setNav();await renderPlayers();return;}
     if(location.hash==='#integration'){state.page='integration';setNav();await renderIntegration();return;}
     if(match) {
       const t=await api(`/api/tournaments/${match[1]}`);
@@ -149,7 +150,7 @@ async function route() {
     main.innerHTML=`<div class="load-error"><h3>Die Ansicht konnte nicht geladen werden.</h3><p>${esc(error.message)}</p><button class="button" data-retry>Erneut versuchen</button><a class="button" href="#">Zur Übersicht</a></div>`;
   }
 }
-document.querySelectorAll('[data-page]').forEach(el=>el.onclick=()=>{state.search='';location.hash=el.dataset.page==='integration'?'integration':el.dataset.page==='archive'?'archive':'';});
+document.querySelectorAll('[data-page]').forEach(el=>el.onclick=()=>{state.search='';location.hash=el.dataset.page==='players'?'players':el.dataset.page==='integration'?'integration':el.dataset.page==='archive'?'archive':'';});
 document.querySelector('#close-dialog').onclick=()=>dialog.close();
 document.querySelector('#add-player').onclick=addTypedPlayer;
 document.querySelector('#player-name').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addTypedPlayer();}};

@@ -4,8 +4,6 @@ services:
     image: ghcr.io/mulich/dartfreunde-platten-turnierplaner:latest
     pull_policy: always
     restart: unless-stopped
-    environment:
-      TOURNAMENT_ADMIN_KEY: "${TOURNAMENT_ADMIN_KEY:-}"
     ports:
       - "${TOURNAMENT_PORT:-18081}:8000"
     volumes:

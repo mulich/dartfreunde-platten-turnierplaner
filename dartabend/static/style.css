@@ -297,3 +297,10 @@ dialog{padding:22px}
 .bridge-job p{color:var(--muted);font-size:12px;overflow-wrap:anywhere}
 .bridge-job a{color:#8ed3ff}
 @media(max-width:600px){.bridge-job{align-items:flex-start;flex-direction:column}.detail-heading h1{font-size:25px}}
+
+.account-check{display:inline-flex;color:#73c5ff;background:#234966;border-radius:50%;width:17px;height:17px;align-items:center;justify-content:center;font-size:11px;margin-left:5px;vertical-align:middle}
+.profile-list{display:grid;gap:12px;margin-top:22px}.profile-row{display:grid;grid-template-columns:1fr 1fr auto;gap:16px;align-items:end;background:var(--panel);border:1px solid var(--line);padding:18px;border-radius:10px}.profile-row label{margin:0}.profile-row input{margin-top:8px;width:100%}.profile-row .form-error{grid-column:1/-1;margin:0}.profile-row .detail-actions{margin:0}
+@media(max-width:700px){.profile-row{grid-template-columns:1fr}.profile-row .form-error{grid-column:1}.profile-row button{justify-self:start}}
+.profile-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto}.profile-row label{display:block;min-width:0;color:var(--muted)}.profile-row input{display:block;padding:10px 12px;outline:none}.profile-row input:focus{border-color:var(--accent)}
+@media(max-width:700px){.profile-row{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:520px){.sidebar{flex-direction:column;align-items:stretch}.sidebar nav{width:100%}.sidebar .nav-item{flex:1;justify-content:center;padding:9px 6px;font-size:11px}}

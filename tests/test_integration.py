@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from dartabend.main import app, database
 from dartabend.integration import BOARDS, GameSettings
 
-ADMIN={'X-Integration-Key':'test-administration-secret'}
+ADMIN={}
 INSTANCE='first-browser-instance-1234'
 
 
@@ -16,11 +16,12 @@ INSTANCE='first-browser-instance-1234'
 def client(tmp_path,monkeypatch):
     monkeypatch.setenv('TOURNAMENT_DB',str(tmp_path/'test.sqlite3'))
     monkeypatch.setenv('TOURNAMENT_HISTORY','')
-    monkeypatch.setenv('TOURNAMENT_ADMIN_KEY','test-administration-secret')
     with TestClient(app) as c:yield c
 
 
 def create(client,players=None):
+    for name in players or ['Alice','Bob','Carol','Dave']:
+        client.post('/api/player-profiles',json={'name':name,'account_name':name})
     response=client.post('/api/tournaments',json={'name':'Integration','players':players or ['Alice','Bob','Carol','Dave'],'boards':2})
     assert response.status_code==201
     t=response.json()
@@ -29,9 +30,7 @@ def create(client,players=None):
 
 
 def pair(client,board='Rot'):
-    response=client.post(f'/api/integration/boards/{board}/pair',headers=ADMIN)
-    assert response.status_code==200
-    return {'Authorization':'Bearer '+response.json()['key']}
+    return {'X-Board-ID':BOARDS[board]}
 
 
 def poll(client,headers,instance=INSTANCE,ready=True):
@@ -53,19 +52,14 @@ def playing(client,headers,job):
     return state(client,headers,job,'playing',autodarts_match_id='confirmed-match')
 
 
-def test_admin_auth_and_board_key_scope(client,monkeypatch):
-    assert client.post('/api/integration/boards/Rot/pair').status_code==401
-    monkeypatch.delenv('TOURNAMENT_ADMIN_KEY')
-    assert client.post('/api/integration/boards/Rot/pair',headers=ADMIN).status_code==503
-    monkeypatch.setenv('TOURNAMENT_ADMIN_KEY','test-administration-secret')
-    headers=pair(client)
+def test_board_identity_without_application_passwords(client,monkeypatch):
+    monkeypatch.delenv('TOURNAMENT_ADMIN_KEY',raising=False)
+    assert client.post('/api/integration/boards/Rot/pair').status_code==404
     assert client.post('/api/bridge/poll',json={'instance':INSTANCE}).status_code==401
-    assert poll(client,headers) is None
-    with database() as db:
-        saved=db.execute("SELECT key_hash FROM board_bridges WHERE name='Rot'").fetchone()[0]
-        assert headers['Authorization'].removeprefix('Bearer ')!=saved
-    pair(client)
-    assert client.post('/api/bridge/poll',headers=headers,json={'instance':INSTANCE}).status_code==401
+    assert client.post('/api/bridge/poll',headers={'X-Board-ID':'invalid'},json={'instance':INSTANCE}).status_code==401
+    assert poll(client,pair(client)) is None
+    t=create(client)
+    assert client.post(f"/api/tournaments/{t['id']}/automation",json={'enabled':False}).status_code==200
 
 
 def test_claim_exclusivity_and_wave_barrier(client):
@@ -169,7 +163,6 @@ def test_legacy_rules_and_changes_do_not_rewrite_results(client):
     assert client.get(f'/api/tournaments/{tid}').json()['game_settings_known'] is False
     assert client.post(f'/api/tournaments/{tid}/automation',headers=ADMIN,json={'enabled':True}).status_code==409
     path=f'/api/tournaments/{tid}/game-settings'
-    assert client.post(path,json={'length':5}).status_code==401
     updated=client.post(path,headers=ADMIN,json={'length':5})
     assert updated.status_code==200
     assert updated.json()['game_settings_known'] is True
@@ -198,7 +191,7 @@ def test_userscript_proxy_errors_distinguish_basic_auth_and_board_key():
     const {parseResponse}=require(process.argv[1]);
     const planner='https://turnier.mulich.de/api/bridge/poll';
     const basic={status:401,responseHeaders:'Content-Type: text/html\r\nWWW-Authenticate: Basic realm="Authorization required"',responseText:'<html><h1>401 Authorization Required</h1></html>'};
-    assert.throws(()=>parseResponse(basic,planner),e=>e.status===401 && e.service==='planner' && e.message.includes('Reverse-Proxy-Passwortschutz') && e.message.includes('/api/bridge/'));
+    assert.throws(()=>parseResponse(basic,planner),e=>e.status===401 && e.service==='planner' && e.message.includes('Website-Passwortschutz') && e.message.includes('anmelden'));
     assert.throws(()=>parseResponse({status:401,responseText:JSON.stringify({detail:'Board-Schlüssel ungültig.'})},planner),e=>e.service==='planner'&&e.message.includes('Board-Schlüssel ungültig.')&&!e.message.includes('Basic-Auth'));
     assert.throws(()=>parseResponse({...basic,status:200,responseHeaders:''},planner),/HTML-Seite statt JSON/);
     assert.throws(()=>parseResponse({status:502,responseText:'Bad Gateway'},planner),/HTTP 502/);

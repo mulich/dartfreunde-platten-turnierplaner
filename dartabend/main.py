@@ -11,6 +11,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, StrictInt, model_validator
 
+from . import player_profiles
 from .scheduler import spielplan_erstellen
 from .history_import import import_history
 from .integration import GameSettings, initialize as init_integration, install as install_integration
@@ -65,12 +66,14 @@ def init_database():
                 db.execute(f'ALTER TABLE tournaments ADD COLUMN {name} {kind}')
         db.execute('UPDATE tournaments SET archived_at=finished_at WHERE finished_at IS NOT NULL AND archived_at IS NULL')
         db.execute('CREATE UNIQUE INDEX IF NOT EXISTS tournament_source ON tournaments(source_sha256)')
-        db.execute('PRAGMA user_version = 4')
+        db.execute('PRAGMA user_version = 5')
         db.execute('CREATE TABLE IF NOT EXISTS deleted_imports (source_sha256 TEXT PRIMARY KEY)')
         init_integration(db)
+        player_profiles.initialize(db)
         history = Path(os.environ.get('TOURNAMENT_HISTORY', ''))
         if history.is_file():
             import_history(db, history)
+        player_profiles.seed(db, DEFAULT_PLAYERS)
 
 
 @asynccontextmanager
@@ -158,7 +161,7 @@ def detail(db, tournament_id):
     tournament = get_tournament(db, tournament_id)
     players = [r['name'] for r in db.execute('SELECT name FROM players WHERE tournament_id=? ORDER BY position', (tournament_id,))]
     matches = [dict(r) for r in db.execute('SELECT * FROM matches WHERE tournament_id=? ORDER BY number', (tournament_id,))]
-    tournament.update(players=players, matches=matches, standings=standings(players, matches),
+    tournament.update(player_accounts={p['name']:p['account_name'] for p in player_profiles.participants(db,players)}, players=players, matches=matches, standings=standings(players, matches),
                       total=len(matches), played=sum(m['score1'] is not None for m in matches))
     return tournament
 
@@ -192,15 +195,11 @@ def list_tournaments():
 
 @app.get('/api/players')
 def player_shortcuts():
-    """Defaults plus names from saved tournaments, without case duplicates."""
-    names = {name.casefold(): name for name in DEFAULT_PLAYERS}
     with database() as db:
-        for row in db.execute('SELECT name FROM players ORDER BY id'):
-            names.setdefault(row['name'].casefold(), row['name'])
-    return list(DEFAULT_PLAYERS) + sorted(
-        (name for key, name in names.items() if key not in {p.casefold() for p in DEFAULT_PLAYERS}),
-        key=str.casefold,
-    )
+        player_profiles.seed(db, DEFAULT_PLAYERS)
+        names=[r['name'] for r in db.execute('SELECT name FROM player_profiles WHERE hidden=0 ORDER BY id')]
+        order={name.casefold():i for i,name in enumerate(DEFAULT_PLAYERS)}
+        return sorted(names,key=lambda name:(order.get(name.casefold(),len(order)),name.casefold()))
 
 
 @app.post('/api/tournaments', status_code=201)
@@ -302,4 +301,5 @@ def abort_tournament(tournament_id: str):
         return detail(db, tournament_id)
 
 
+player_profiles.install(app, database, DEFAULT_PLAYERS)
 install_integration(app, database, get_tournament, detail)

@@ -1,176 +1,132 @@
-# Autodarts auf den Board-PCs
+# Autodarts: Spieleraccounts und lokale Gäste
 
-Turnierplaner: https://turnier.mulich.de/ · Accounts und Script-Downloads:
-https://dartportal.mulich.de/. Das Portal nimmt mit den angemeldeten Spieleraccounts
-Einladungen der freigegebenen Board-Accounts automatisch an. Die Board-Scripts
-legen private X01-Lobbys an, laden die zwei geplanten Spieler ein, ordnen beide
-als lokale Spieler der Scheibe zu und übernehmen das Endergebnis in Legs.
+Turnierplaner: https://turnier.mulich.de/ · Accounts und Downloads:
+https://dartportal.mulich.de/
 
-## Container aktualisieren
+## Update
 
-Beide Anwendungen aktualisieren, jeweils im Ordner ihrer Compose-Datei:
+Beide Container auf die neue Version aktualisieren und auf jedem PC das neue
+Scheiben-Script **2.1.0** installieren bzw. in Tampermonkey aktualisieren:
+
+- Blau: https://dartportal.mulich.de/static/turnier-blau.user.js
+- Rot: https://dartportal.mulich.de/static/turnier-rot.user.js
+- Schwarz: https://dartportal.mulich.de/static/turnier-schwarz.user.js
+
+Jeweils im Compose-Verzeichnis:
 
 ```sh
 docker compose pull
 docker compose up -d
 ```
 
-Für den Turnierplaner die aktualisierte `compose.server.yaml` verwenden. Sie liest
-`TOURNAMENT_ADMIN_KEY` aus der Umgebung bzw. der `.env` neben der Compose-Datei.
-Einen eigenen zufälligen Verwaltungsschlüssel erzeugen, beispielsweise mit
-`openssl rand -hex 32`, und auf dem Server in `.env` setzen:
+Die Datenvolumes beibehalten. Die Migration ergänzt die Spielerverwaltung und
+bewahrt vorhandene Turniere, Ergebnisse und laufende Zuordnungen.
 
-```dotenv
-TOURNAMENT_ADMIN_KEY=HIER_DEN_EIGENEN_SCHLUESSEL_EINTRAGEN
-```
+## Passwortschutz der Website
 
-Bei Portainer diese Variable in den Stack-Umgebungsvariablen setzen und den Stack
-neu deployen. Den Verwaltungsschlüssel nur den Turnierverantwortlichen geben.
-Er schützt Board-Kopplung, Automatik und Spielregeln; die übrige Anwendung behält
-ihren bisherigen Zugriffsschutz am Reverse Proxy. Ohne diese Variable funktioniert
-der manuelle Planer weiter, die Autodarts-Verwaltung ist gesperrt. Datenvolume
-beibehalten; keine Datenbank oder Zugangsdaten nach GitHub hochladen.
+Zusätzliche Board-Schlüssel und die Abfrage von `TOURNAMENT_ADMIN_KEY` wurden auf
+Wunsch entfernt. Die Compose-Datei benötigt diese Variable nicht mehr. Alte
+Board-Schlüssel werden nicht mehr verwendet. Das Script übermittelt ausschließlich
+seine feste Board-ID als `X-Board-ID`; diese ID ist kein Geheimnis und kein
+Zugriffsschutz. Die gesamte Anwendung einschließlich `/api/bridge/` wird durch
+**den vorhandenen Passwortschutz im Reverse Proxy** geschützt.
 
-## Reverse Proxy mit zusätzlichem Passwortschutz
+**Eine zuvor eingerichtete NPM-Ausnahme für `/api/bridge/` wieder entfernen.**
+In Nginx Proxy Manager beim Proxy Host `turnier.mulich.de` den dafür angelegten
+Location-Block aus Advanced bzw. die betreffende Custom Location löschen.
+Die normale Access List beibehalten. Keine direkte öffentliche Freigabe des
+Container-Ports einrichten.
 
-Das Script sendet seinen Board-Schlüssel als `Authorization: Bearer …` an
-`https://turnier.mulich.de/api/bridge/`. Ein davor liegender HTTP-Basic-Passwortschutz
-kann diesen Header nicht zugleich für einen Proxy-Login verwenden. Er antwortet
-mit HTTP 401 und einer HTML-Seite, bevor der Turnierplaner erreicht wird.
+Auf jedem Board-PC `https://turnier.mulich.de/` einmal **im selben Browser und
+Browserprofil** öffnen und den normalen Website-Login durchführen. Das Script
+sendet zum Planer Browser-Anmeldedaten mit, statt einen zusätzlichen Bearer-
+Board-Schlüssel zu setzen. Bei HTTP 401 auf **Website anmelden** klicken und den
+Website-Login erneuern. Je nach Browser/Erweiterung muss die Übernahme des
+Proxy-Logins am jeweiligen PC geprüft werden. Website-Passwörter werden vom Script
+nicht abgefragt, gespeichert oder an Autodarts geschickt.
 
-Nur für den Pfad **`/api/bridge/`** den zusätzlichen Proxy-Passwortschutz ausnehmen.
-Die Board-Endpunkte bleiben durch die zufälligen Board-Schlüssel geschützt. Die
-übrige Website und die Verwaltungsendpunkte behalten ihren bisherigen Schutz.
-In Nginx gehört `auth_basic off;` in die zuständige Location; das Proxy-Ziel bleibt
-der Turnier-Container und der ursprüngliche URL-Pfad muss erhalten bleiben.
-Den Authorization-Header an den Container weiterreichen. Referenz:
-https://nginx.org/en/docs/http/ngx_http_auth_basic_module.html#auth_basic
+## Spielerverwaltung
 
-Bei einer Proxy-Verwaltungsoberfläche eine gesonderte Weiterleitung für
-`/api/bridge/` mit demselben Ziel wie den Turnierplaner und ohne Basic-Auth einrichten.
-Nicht die ganze Website freigeben und nicht `/api/integration/` ausnehmen.
-Ein Aufruf ohne Board-Schlüssel muss anschließend eine JSON-Antwort
-`{"detail":"Board-Schlüssel ungültig."}` mit HTTP 401 liefern, keine HTML-Loginseite.
-Das ist die erwartete Antwort der Anwendung und bestätigt die Weiterleitung.
+Im Planer **Spieler** öffnen. Anzeigenamen hinzufügen, ändern und aus der
+Auswahlliste entfernen. Optional den exakten Autodarts-Accountnamen zuweisen.
+Ein kleiner blauer Haken bedeutet **Account zugewiesen**, nicht extern verifiziert.
+Pro Account ist nur ein Spielerprofil erlaubt. Ein leeres Accountfeld bedeutet
+**lokaler Spieler**; es werden weder ein Account noch eine Einladung benötigt.
 
-### Nginx Proxy Manager
+Namen aus vorhandenen Turnieren und die acht Standardspieler stehen zunächst ohne
+Accountzuordnung bereit. Eine Zuordnung wird nicht aus einem ähnlich klingenden
+Namen geraten. Beim Umbenennen bleiben historische Turniernamen erhalten; frühere
+Namen sind intern mit demselben Profil verknüpft. Entfernen betrifft die
+Auswahlliste, nicht vergangene Turniere oder bereits laufende Spiele.
+Änderungen an Accounts werden für noch nicht verknüpfte Begegnungen verwendet;
+ein bereits beanspruchter Board-Auftrag speichert seine Teilnehmerzuordnung fest.
 
-Den Proxy Host für `turnier.mulich.de` bearbeiten. Die Access List unter **Details**
-beibehalten. Im Haupt-Reiter **Advanced** folgenden Location-Block ergänzen
-(nicht im Zahnrad einer Custom Location, da diese je nach Version die Access List
-wieder einfügt). Falls bereits eine Custom Location `/api/bridge/` existiert,
-diese vorher entfernen, damit kein doppelter Location-Block entsteht.
+## Board-PCs einrichten
 
-```nginx
-location ^~ /api/bridge/ {
-    auth_basic off;
-    proxy_set_header Host $host;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header Authorization $http_authorization;
-    proxy_pass $forward_scheme://$server:$port;
-}
-```
+1. Tampermonkey und das passende Scheiben-Script installieren.
+2. Auf dem PC bei https://play.autodarts.com/ mit dem zugehörigen Board-Account
+   anmelden und die Seite neu laden. Der Turnierplaner-Login muss im selben
+   Browserprofil erfolgt sein. Es gibt keine zusätzliche Schlüsselkopplung.
+3. Andere Scripts zur automatischen Lobby-Steuerung, insbesondere „Lokale Spieler“
+   oder Team Lobby Mode, während der Turnier-Automatik deaktivieren.
+4. Nur Teilnehmer mit Accountzuordnung müssen als bestätigte Freunde der
+   verwendeten Board-Accounts hinterlegt sein. Diese Spieleraccounts im Portal
+   anmelden und die automatische Einladungsannahme der freigegebenen
+   Board-Accounts aktivieren. Lokale Gäste brauchen keinen Portal-Login.
+5. Bestehende fremde Spiele auf den Scheiben beenden. Im Planer unter **Autodarts**
+   den Status aktualisieren und im gewünschten Turnier **Autodarts starten** wählen.
 
-Diese Variablen stammen aus dem normalen Proxy Host und übernehmen dessen
-Zieladresse, Port und Protokoll. Speichern und prüfen, dass der Host weiterhin
-Online ist. Keine Änderung an der Access List für die restliche Website nötig.
-Referenz für die Variablen und getrennte Standard-Location:
-https://github.com/NginxProxyManager/nginx-proxy-manager/blob/develop/backend/templates/proxy_host.conf
-
-## Einmalige Einrichtung
-
-1. Auf jedem Scheiben-PC Tampermonkey installieren. Im Accountportal den Abschnitt
-   **Turnier-Board-Scripts** öffnen und das passende Script installieren:
-   - Blau: https://dartportal.mulich.de/static/turnier-blau.user.js
-   - Rot: https://dartportal.mulich.de/static/turnier-rot.user.js
-   - Schwarz: https://dartportal.mulich.de/static/turnier-schwarz.user.js
-2. Auf dem PC bei https://play.autodarts.com/ mit dem betreffenden Board-Account
-   anmelden. Die Seite nach der Installation neu laden. Ein zweites Script zur
-   automatischen Lobby-Steuerung, insbesondere „Lokale Spieler“, für den Betrieb
-   der Turnier-Automatik deaktivieren.
-3. Im Planer **Autodarts** öffnen. Für jede Scheibe **Schlüssel erzeugen** wählen,
-   den Verwaltungsschlüssel eingeben und den einmal angezeigten Board-Schlüssel
-   kopieren. Im Autodarts-Fenster des passenden PCs unten rechts **Verbinden**
-   wählen und diesen Board-Schlüssel einfügen. Tampermonkey muss die Verbindungen
-   zu `turnier.mulich.de` und `api.autodarts.com` erlauben.
-4. Jeder Teilnehmer muss mit dem exakten Autodarts-Accountnamen im Turnier stehen
-   und in der bestätigten Freundesliste jedes verwendeten Board-Accounts stehen.
-   Eine User-ID oder ein Vereinsname muss nicht eingegeben werden. IDs werden
-   intern über die Freundesliste aufgelöst. Fehlende/mehrdeutige Namen stoppen
-   die Lobby-Vorbereitung und werden als Hinweis angezeigt.
-5. Im Accountportal die Spieleraccounts anmelden und die automatische Annahme
-   aktivieren. Die Board-Accounts müssen dort als erlaubte Gastgeber eingetragen
-   sein. Den Script-Status im Planer über **Aktualisieren** prüfen.
-
-| Scheibe | Fest hinterlegte Board-ID |
+| Scheibe | Feste Board-ID |
 | --- | --- |
 | Blau | faa2cd5f-5d19-4e68-9749-1b7b95c753d4 |
 | Rot | ad381dc0-7e86-45a1-9fa8-61c8b18ec89b |
 | Schwarz | 6e390006-cdba-4ac5-b0bb-0e03eb880af6 |
 
-## Turnier starten
+## Ablauf
 
-Beim Erstellen X01-Startpunkte, Best of bzw. First to, Anzahl Legs, In/Out,
-Bull-Wertung und maximale Runden wählen. Best of benötigt eine ungerade Zahl:
-Best of 3 bedeutet 2 Legs zum Sieg. Bull-off ist immer aus; Spieler 1 im Spielplan
-steht in der Lobby zuerst und wirft an. Bereits vorhandene Turniere haben keine
-überlieferten Spielregeln; diese über **Spielregeln** ausdrücklich speichern,
-bevor die Automatik aktiviert werden kann. Änderungen gelten für kommende Spiele.
+Startpunkte, Best of/First to, Anzahl Legs, In/Out, Bull-Wertung und maximale Runden
+im Turnier wählen. Bull-off bleibt aus. Spieler 1 im Plan wirft an. Best of 3
+bedeutet 2 Legs zum Sieg. Bei älteren Turnieren die Spielregeln ausdrücklich
+speichern; ihre früheren Regeln sind nicht überliefert.
 
-Bestehende fremde Spiele auf den Scheiben zuerst beenden. Im gewünschten Turnier
-**Autodarts starten** wählen und den Verwaltungsschlüssel eingeben. Nur ein
-Turnier kann gleichzeitig automatisch laufen. Pro Scheibe nur ein aktiver Browser-Tab
-mit dem passenden Script. Alle Begegnungen des aktuellen Durchgangs müssen beendet
-sein, bevor der nächste Durchgang angelegt wird. Damit wird kein Spieler zeitgleich
-zu zwei Spielen eingeladen.
+Die private Lobby kann zwei Accountspieler, zwei lokale Gäste oder einen Spieler
+von jeder Art enthalten. Accounts werden anhand der Freundesliste eindeutig
+aufgelöst und eingeladen. Lokale Spieler werden mit ihrem Turniernamen und der
+festen Board-ID hinzugefügt. Beide spielen an derselben Scheibe. Das Script prüft
+Teilnehmer, Reihenfolge, Board und Spielregeln vor dem Start. Ein versehentlich
+fehlender oder mehrdeutiger zugewiesener Account wird nicht als Gast ersetzt.
 
-Die Scripts warten auf beide Einladungsannahmen und prüfen Namen, Spielerreihenfolge,
-Board-Zuordnung und Regeln vor dem Start. Der Planer übernimmt ausschließlich ein
-bestätigtes Endergebnis aus der Match-Statistik, passend zu beiden Accounts und der
-konfigurierten Anzahl Legs. Einzelne Leg-Enden und Restpunkte werden nicht als
-Turnierergebnis übernommen. Während der Automatik sind manuelle Ergebnisfelder
-gesperrt; Spielplan und Tabelle aktualisieren sich alle fünf Sekunden.
+Nur ein Turnier kann automatisch laufen. Pro Scheibe nur einen Script-Tab verwenden.
+Alle Spiele eines Durchgangs müssen beendet sein, bevor der nächste beginnt.
+Ergebnisse werden aus der gespeicherten Match-Statistik beiden Teilnehmern
+zugeordnet und gegen das eingestellte Leg-Ziel geprüft. Einzelne Leg-Enden oder
+Restpunkte zählen nicht als Turnierergebnis. Der Planer aktualisiert sich während
+der Automatik alle fünf Sekunden; manuelle Ergebnisfelder sind gesperrt.
 
 ## Pause und Fehlerbehebung
 
-**Autodarts pausieren** hält die Bearbeitung im Planer an. Bereits laufende
-Autodarts-Matches laufen auf der Scheibe weiter; nach Fortsetzen werden deren
-Ergebnisse übernommen. Auch Abbrechen/Löschen im Planer beendet das externe Match
-nicht. Ein Script kann lokal mit **Start / Pause** angehalten werden.
+Pausieren hält die Bearbeitung an; das externe Match läuft weiter und kann nach
+Fortsetzen übernommen werden. Auch Abbrechen/Löschen im Planer beendet kein
+Autodarts-Match. Bei unklarer Erstellung/Spielstart wird kein zweites Spiel angelegt.
+Automatik pausieren, bestehende Lobby oder Match in Autodarts prüfen und beenden;
+danach unter **Autodarts → Zuordnung zurücksetzen** zurücksetzen und fortsetzen.
+Nach einem Seitenwechsel kann die Übernahme der Steuerung bis zu 75 Sekunden dauern.
 
-Bei unklarer Lobby-Erstellung oder unbestätigtem Matchstart erfolgt kein weiterer
-Erstellungsversuch, um doppelte Spiele zu vermeiden. Turnier-Automatik pausieren,
-in Autodarts die tatsächliche Lobby bzw. das Match prüfen und beenden. Danach im
-Planer unter **Autodarts → Verknüpfte Begegnungen → Zuordnung zurücksetzen** den
-Auftrag zurücksetzen und die Automatik fortsetzen. Ein Zurücksetzen löscht kein
-bereits gespeichertes Turnierergebnis. Einen neuen Board-Schlüssel nur bei Bedarf
-erzeugen; er macht den alten ungültig und muss erneut im PC-Script eingefügt werden.
-
-Nach einem Seiten-Neuladen kann die Übernahme der Board-Steuerung bis zu 75 Sekunden
-dauern. Ein abgemeldeter Board-Account benötigt erneute Anmeldung. Der Autodarts-
-Zugriffstoken bleibt im Speicher des Board-Browsers; im Planer liegen nur gehashte
-Board-Schlüssel sowie Zuordnungen, Account-IDs und Ergebnisse.
-
-Die Schnittstelle basiert auf dem aktuellen offiziellen Autodarts-Webclient und
-ist keine garantierte öffentliche Automatisierungs-API. Änderungen bei Autodarts
-können eine Script-Anpassung erfordern. Backend, Zustandswechsel und Script-Adapter
-werden mit isolierten Fixtures getestet. Der erste reale Lobby-Start und die
-Ergebnisübernahme müssen an euren Scheiben mit zwei angemeldeten Testspielern
-geprüft werden; diese Tests benötigen die tatsächlichen Board-PCs.
+Die Autodarts-Schnittstelle ist keine garantierte öffentliche Automatisierungs-API.
+Backend, Teilnehmerzuordnung, Account-/Gast-Mischungen und Script-Ablauf werden mit
+isolierten Fixtures getestet. Ein echter Start, Gastspiel und Ergebnisimport müssen
+an euren PCs geprüft werden. Autodarts-Zugriffstokens bleiben im Board-Browser.
 
 ## Entwicklung
-
-Die drei Scripts werden aus `scripts/board-bridge.template.js` generiert:
 
 ```sh
 python scripts/generate_board_scripts.py
 python -m pytest -q
 node --check dartabend/static/app.js
 node --check dartabend/static/integration.js
+node --check dartabend/static/players.js
 ```
 
-In diesem gemeinsamen Workspace schreibt der Generator dieselben Download-Dateien
-auch ins benachbarte Accountportal. In einem eigenständigen Checkout werden die
-Portal-Dateien unter `../app/static` vorbereitet und müssen separat ins Portal-
-Repository übernommen werden. Beide Images nach Script-Änderungen aktualisieren.
+Der Generator schreibt identische Scripts in `dartabend/static` und in das
+benachbarte Accountportal unter `../app/static`. Beide Repositories und Images
+nach Script-Änderungen aktualisieren.

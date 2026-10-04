@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dartfreunde Platten – Turnier-Board Rot
 // @namespace    dartfreunde-platten-turnierplaner
-// @version      2.0.1
+// @version      2.1.0
 // @description  Private Turnier-Lobbys, Einladungen und Ergebnisübernahme für Rot.
 // @match        https://play.autodarts.com/*
 // @run-at       document-start
@@ -32,13 +32,21 @@
       return found[0];
     });
   }
+  function entries(job) {
+    return job.participants || [job.match.player1,job.match.player2].map(name=>({name,account_name:name}));
+  }
+  function localKey(name) {return 'local:'+normalize(name);}
+  function matchesPlayer(player,index,job,stats=false) {
+    const entry=entries(job)[index];
+    if(!entry.account_name)return !player.userId && !player.user?.id && normalize(player.name)===normalize(entry.name);
+    const id=job.user_ids[index];
+    const ident=player.userId || player.user?.id || (job.user_ids.includes(player.id)?player.id:null);
+    return ident ? ident===id : stats && normalize(player.name)===normalize(entry.account_name);
+  }
   function finalResult(state, stats, job) {
     if (state?.finished !== true || !Array.isArray(stats?.players) || stats.players.length !== 2 || !Array.isArray(stats.matchStats) || stats.matchStats.length !== 2) return null;
     const scores = job.user_ids.map((id, expectedIndex) => {
-      const matches = stats.players.map((p, index) => ({p, index})).filter(({p}) => {
-        const ident = p.userId || p.user?.id || (job.user_ids.includes(p.id)?p.id:null);
-        return ident ? ident === id : normalize(p.name) === normalize(expectedIndex === 0 ? job.match.player1 : job.match.player2);
-      });
+      const matches = stats.players.map((p, index) => ({p, index})).filter(({p})=>matchesPlayer(p,expectedIndex,job,true));
       if (matches.length !== 1) return null;
       const legs = stats.matchStats[matches[0].index]?.legsWon;
       return Number.isInteger(legs) && legs >= 0 ? legs : null;
@@ -52,7 +60,7 @@
     if(lobby.variant!==expected.variant || lobby.legs!==expected.legs || lobby.bullOffMode!==expected.bullOffMode || Object.entries(expected.settings).some(([key,value])=>lobby.settings?.[key]!==value))return false;
     const players = lobby.players;
     return players.length === 2 && players.every(p => !p.isPending && !p.cpuPPR && p.boardId === BOARD_ID)
-      && job.user_ids.every((id, index) => players[index]?.userId === id);
+      && job.user_ids.every((id, index) => matchesPlayer(players[index],index,job));
   }
   function parseResponse(response, url) {
     const service = new URL(url).origin === SERVER ? 'planner' : 'autodarts';
@@ -61,7 +69,7 @@
     const successful=response.status>=200 && response.status<300;
     const text=typeof response.responseText==='string'?response.responseText.trim():'';
     if(response.status===401 && /(?:^|\r?\n)www-authenticate:\s*Basic\b/i.test(response.responseHeaders || '')) {
-      fail(service==='planner'?'Reverse-Proxy-Passwortschutz blockiert /api/bridge/. Dort Basic-Auth deaktivieren; Board-Schlüssel bleibt erforderlich.':'Zusätzlicher Passwortschutz blockiert die API.');
+      fail(service==='planner'?'Website-Passwortschutz: turnier.mulich.de auf diesem PC im selben Browser öffnen und anmelden.':'Zusätzlicher Passwortschutz blockiert die API.');
     }
     let body;
     if(response.response && typeof response.response==='object')body=response.response;
@@ -76,12 +84,12 @@
   }
   // Pure adapters are exercised using fixtures; requiring this file never enables automation.
   if (typeof module === 'object' && module.exports) {
-    module.exports = {resolvePlayers, finalResult, correctLobby, parseResponse};
+    module.exports = {resolvePlayers, finalResult, correctLobby, parseResponse, matchesPlayer, localKey};
     return;
   }
   const instance = crypto.randomUUID();
   const storage = `dfp-turnier-${BOARD_ID}`;
-  let config = GM_getValue(storage, {key:'', enabled:false});
+  let config = {enabled:GM_getValue(storage, {enabled:true}).enabled!==false};
   let bearer = '';
   let message = 'Automatik aus';
   let ticking = false;
@@ -112,14 +120,14 @@
   };
   function show(text) { message = text; if(panel)panel.querySelector('[data-status]').textContent=text; }
   function request(url, method='GET', data, headers={}) {
-    return new Promise((resolve, reject) => GM_xmlhttpRequest({url, method, timeout:12000, anonymous:true,
+    return new Promise((resolve, reject) => GM_xmlhttpRequest({url, method, timeout:12000, anonymous:new URL(url).origin!==SERVER,
       headers:{'Content-Type':'application/json', ...headers}, data:data===undefined?undefined:JSON.stringify(data),
       onload:r=>{
         try{resolve(parseResponse(r,url));}catch(error){reject(error);}
       }, onerror:()=>reject(new Error('Verbindung fehlgeschlagen.')), ontimeout:()=>reject(new Error('Zeitüberschreitung.'))
     }));
   }
-  const planner = (path, data) => request(SERVER+path, 'POST', {instance, ...data}, {Authorization:'Bearer '+config.key});
+  const planner = (path, data) => request(SERVER+path, 'POST', {instance, ...data}, {'X-Board-ID':BOARD_ID});
   const autodarts = (path, method='GET', data) => {
     if(!bearer)throw new Error('Autodarts anmelden und Seite neu laden.');
     return request(API+path, method, data, {Authorization:'Bearer '+bearer});
@@ -141,13 +149,17 @@
     return state?.finished===true;
   }
   async function prepare(job) {
-    const friends=await autodarts('/as/v0/friends');
-    if(!Array.isArray(friends))throw new Error('Freundesliste nicht erkannt.');
+    const planned=entries(job);
     let sub;
     try{sub=JSON.parse(atob(bearer.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).sub;}catch{throw new Error('Account-Sitzung nicht erkannt.');}
-    const me=await autodarts(`/us/v0/users/${encodeURIComponent(sub)}`);
-    const users=resolvePlayers([job.match.player1,job.match.player2],friends,me);
-    if(users[0].id===users[1].id)throw new Error('Beide Spieler sind derselbe Account.');
+    let friends=[],me=null;
+    if(planned.some(p=>p.account_name)) {
+      friends=await autodarts('/as/v0/friends');
+      if(!Array.isArray(friends))throw new Error('Freundesliste nicht erkannt.');
+      me=await autodarts(`/us/v0/users/${encodeURIComponent(sub)}`);
+    }
+    const users=planned.map(p=>p.account_name?resolvePlayers([p.account_name],friends,me)[0]:{id:localKey(p.name),name:p.name});
+    if(users[0].id===users[1].id)throw new Error('Beide Spieler sind derselbe Teilnehmer.');
     // Commit the creation intent BEFORE the external write. An ambiguous failure cannot create a second lobby.
     job=await phase(job,'creating');
     GM_setValue(cacheKey,{job:job.id, stage:'creating'});
@@ -166,23 +178,31 @@
       await autodarts(`/gs/v0/lobbies/${job.lobby_id}/players/by-index/${hostIndex}`,'DELETE');
       lobby=await autodarts(`/gs/v0/lobbies/${job.lobby_id}`);
     }
-    if(lobby.players.some(p=>!job.user_ids.includes(p.userId)))throw new Error('Unerwarteter Teilnehmer in der Lobby. Manuell prüfen.');
+    if(lobby.players.some(p=>!job.user_ids.some((id,index)=>matchesPlayer(p,index,job))))throw new Error('Unerwarteter Teilnehmer in der Lobby. Manuell prüfen.');
     const record=GM_getValue(cacheKey,{job:job.id});
     record.invited=record.invited || [];
-    for(const id of job.user_ids) {
-      if(!lobby.players.some(p=>p.userId===id)&&!record.invited.includes(id)) {
+    record.locals=record.locals || [];
+    for(let index=0;index<job.user_ids.length;index++) {
+      const id=job.user_ids[index],entry=entries(job)[index];
+      if(lobby.players.some(p=>matchesPlayer(p,index,job)))continue;
+      if(!entry.account_name) {
+        if(record.locals.includes(id))throw new Error('Lokaler Spieler nicht bestätigt. Automatik pausieren und Lobby prüfen; Zuordnung ggf. zurücksetzen.');
+        record.locals.push(id);GM_setValue(cacheKey,record);
+        await autodarts(`/gs/v0/lobbies/${job.lobby_id}/players`,'POST',{name:entry.name,boardId:BOARD_ID});
+      }else if(!record.invited.includes(id)) {
         record.invited.push(id);GM_setValue(cacheKey,record);
         await autodarts(`/gs/v0/lobbies/${job.lobby_id}/invitations/${encodeURIComponent(id)}`,'POST');
       }
+      lobby=await autodarts(`/gs/v0/lobbies/${job.lobby_id}`);
     }
     lobby=await autodarts(`/gs/v0/lobbies/${job.lobby_id}`);
-    if(lobby.players.length!==2 || lobby.players.some(p=>p.isPending)) {show('Wartet auf die Annahme beider Einladungen');return job;}
+    if(lobby.players.length!==2 || lobby.players.some(p=>p.isPending)) {show('Wartet auf die Annahme der Account-Einladungen');return job;}
     for(let index=0;index<lobby.players.length;index++) {
       if(lobby.players[index].boardId!==BOARD_ID)await autodarts(`/gs/v0/lobbies/${job.lobby_id}/players/by-index/${index}/host`,'PUT',{boardId:BOARD_ID});
     }
     lobby=await autodarts(`/gs/v0/lobbies/${job.lobby_id}`);
     for(let target=0;target<job.user_ids.length;target++) {
-      const index=lobby.players.findIndex(p=>p.userId===job.user_ids[target]);
+      const index=lobby.players.findIndex(p=>matchesPlayer(p,target,job));
       if(index!==target) {
         await autodarts(`/gs/v0/lobbies/${job.lobby_id}/players/move/to-index`,'POST',{index,toIndex:target});
         lobby=await autodarts(`/gs/v0/lobbies/${job.lobby_id}`);
@@ -211,7 +231,7 @@
     show(`Ergebnis ${result.score1}:${result.score2} übernommen`);
   }
   async function tick() {
-    if(ticking||!config.enabled||!config.key)return;
+    if(ticking||!config.enabled)return;
     ticking=true;
     try {
       let ready=false;
@@ -244,13 +264,11 @@
     } finally {ticking=false;}
   }
   function configure() {
-    const key=prompt(`Board ${BOARD}: Verbindungsschlüssel aus Turnierplaner → Autodarts einfügen.`, '');
-    if(key===null)return;
-    if(!/^[A-Za-z0-9_-]{30,100}$/.test(key.trim())){show('Ungültiger Board-Schlüssel');return;}
-    config={key:key.trim(),enabled:true};GM_setValue(storage,config);show('Verbindet mit Turnierplaner …');tick();
+    unsafeWindow.open(SERVER+'/#integration','_blank','noopener');
+    show('Turnierplaner im geöffneten Tab anmelden; danach Script fortsetzen.');
   }
   function toggle() {config.enabled=!config.enabled;GM_setValue(storage,config);show(config.enabled?'Automatik aktiv':'Board-Script pausiert');tick();}
-  GM_registerMenuCommand(`Turnier-Board ${BOARD}: verbinden`,configure);
+  GM_registerMenuCommand(`Turnier-Board ${BOARD}: Website anmelden`,configure);
   GM_registerMenuCommand(`Turnier-Board ${BOARD}: starten/pausieren`,toggle);
   function mount() {
     if(!document.body)return;
@@ -258,7 +276,7 @@
     panel.style.cssText='position:fixed;bottom:12px;right:12px;z-index:9999;background:#142a40;color:#cce6ff;border:1px solid #395f80;border-radius:8px;padding:12px;font:12px system-ui;max-width:340px;box-shadow:0 4px 18px #0005';
     const title=document.createElement('strong');title.textContent=`Turnierplaner · ${BOARD}`;
     const status=document.createElement('p');status.dataset.status='';status.style.cssText='margin:6px 0;overflow-wrap:anywhere';status.textContent=message;
-    const setup=document.createElement('button');setup.textContent='Verbinden';setup.onclick=configure;
+    const setup=document.createElement('button');setup.textContent='Website anmelden';setup.onclick=configure;
     const pause=document.createElement('button');pause.textContent='Start / Pause';pause.onclick=toggle;
     for(const button of [setup,pause])button.style.cssText='background:#254b6a;color:#fff;border:1px solid #527795;border-radius:4px;padding:5px 8px;margin-right:6px;cursor:pointer';
     panel.append(title,status,setup,pause);document.body.append(panel);

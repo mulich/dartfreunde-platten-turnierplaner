@@ -6,12 +6,13 @@
 <link rel="icon" href="/static/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/static/style.css">
 <script defer src="/static/app.js"></script>
 <script defer src="/static/integration.js"></script>
+<script defer src="/static/players.js"></script>
 </head>
 <body>
 <aside class="sidebar">
 <a class="brand" href="#"><span class="brand-icon">◎</span><span>Dartfreunde<span class="brand-place">Platten</span><small>TURNIERPLANER</small></span></a>
 <div class="nav-label">TURNIERZENTRALE</div>
-<nav aria-label="Hauptnavigation"><button class="nav-item selected" data-page="active"><span>◫</span> Turniere <span class="nav-count" id="active-count">0</span></button><button class="nav-item" data-page="archive"><span>◷</span> Archiv <span class="nav-count" id="archive-count">0</span></button><button class="nav-item" data-page="integration"><span>⚙</span> Autodarts</button></nav>
+<nav aria-label="Hauptnavigation"><button class="nav-item selected" data-page="active"><span>◫</span> Turniere <span class="nav-count" id="active-count">0</span></button><button class="nav-item" data-page="archive"><span>◷</span> Archiv <span class="nav-count" id="archive-count">0</span></button><button class="nav-item" data-page="players"><span>♙</span> Spieler</button><button class="nav-item" data-page="integration"><span>⚙</span> Autodarts</button></nav>
 </aside>
 <div class="workspace">
 <header class="topbar"><span>TURNIERPLANER</span><span class="today" id="today"></span></header>
@@ -27,10 +28,10 @@
 <div class="player-shortcuts" id="player-shortcuts" role="group" aria-labelledby="shortcut-label"></div>
 <p class="field-hint" id="shortcut-status" role="status"></p>
 <label for="player-name" class="sr-only">Neuer Spielername</label>
-<div class="add-player-row"><input id="player-name" maxlength="60" placeholder="Autodarts-Accountname" autocomplete="off"><button type="button" class="button" id="add-player">＋ Hinzufügen</button></div>
+<div class="add-player-row"><input id="player-name" maxlength="60" placeholder="Spielername" autocomplete="off"><button type="button" class="button" id="add-player">＋ Hinzufügen</button></div>
 <div class="selected-heading"><span id="selected-label">Teilnehmer</span><span class="label-note" id="player-count">0 Spieler</span></div>
 <div class="selected-players" id="selected-players" role="group" aria-labelledby="selected-label"></div>
-<p class="field-hint">2–64 Spieler · Für Autodarts den exakten Accountnamen verwenden.</p>
+<p class="field-hint">2–64 Spieler · Accounts unter „Spieler“ zuweisen. Ohne Account: lokaler Spieler.</p>
 <label>Scheiben</label>
 <div class="board-options"><label class="board-option"><input type="radio" name="boards" value="2" checked><strong>2 Scheiben</strong><span><i class="dot red"></i> Rot <i class="dot blue"></i> Blau</span></label><label class="board-option"><input type="radio" name="boards" value="3"><strong>3 Scheiben</strong><span><i class="dot red"></i><i class="dot blue"></i><i class="dot black"></i> Rot, Blau & Schwarz</span></label></div>
 <fieldset class="game-options"><legend>Spielregeln · X01</legend>

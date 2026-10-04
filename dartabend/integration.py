@@ -1,12 +1,10 @@
 """Board-scoped coordination. Autodarts credentials never leave the board browser."""
-import os
-import hashlib
-import hmac
 import json
-import secrets
 import time
 from typing import Literal
 from uuid import uuid4
+
+from .player_profiles import participants
 
 from fastapi import Header, HTTPException
 from pydantic import BaseModel, Field, StrictInt, model_validator
@@ -86,25 +84,18 @@ def initialize(db):
         user_ids TEXT, revision INTEGER NOT NULL, error TEXT NOT NULL DEFAULT ''
     );
     ''')
+    if 'participants' not in {r['name'] for r in db.execute('PRAGMA table_info(bridge_jobs)')}:
+        db.execute("ALTER TABLE bridge_jobs ADD COLUMN participants TEXT")
     for name, ident in BOARDS.items():
         db.execute('INSERT OR IGNORE INTO board_bridges(name,board_id) VALUES(?,?)', (name, ident))
 
 
 def install(app, database, get_tournament, detail):
-    def admin(key):
-        expected = os.environ.get('TOURNAMENT_ADMIN_KEY', '')
-        if not expected:
-            raise HTTPException(503, 'Für Autodarts zuerst TOURNAMENT_ADMIN_KEY im Docker-Container setzen.')
-        if not key or not hmac.compare_digest(key, expected):
-            raise HTTPException(401, 'Autodarts-Verwaltungsschlüssel ungültig.')
-
-    def authenticate(db, authorization):
-        token = authorization.removeprefix('Bearer ') if authorization else ''
-        digest = hashlib.sha256(token.encode()).hexdigest()
-        for row in db.execute('SELECT * FROM board_bridges WHERE key_hash IS NOT NULL'):
-            if token and hmac.compare_digest(digest, row['key_hash']):
-                return dict(row)
-        raise HTTPException(401, 'Board-Schlüssel ungültig.')
+    def authenticate(db, board_id):
+        # Identity only: the deployment's reverse proxy protects all endpoints.
+        row=db.execute('SELECT * FROM board_bridges WHERE board_id=?',(board_id,)).fetchone()
+        if not row:raise HTTPException(401,'Unbekannte Board-ID. Passendes Scheiben-Script verwenden.')
+        return dict(row)
 
     def owned_job(db, board, job_id, instance):
         row = db.execute('SELECT * FROM bridge_jobs WHERE id=? AND board=?', (job_id, board['name'])).fetchone()
@@ -119,6 +110,7 @@ def install(app, database, get_tournament, detail):
         match = dict(db.execute('SELECT * FROM matches WHERE id=?', (job['match_id'],)).fetchone())
         t = get_tournament(db, match['tournament_id'])
         return {**job, 'user_ids': json.loads(job['user_ids']) if job['user_ids'] else None,
+                'participants': json.loads(job['participants']) if job['participants'] else [{'name':match['player1'],'account_name':match['player1']},{'name':match['player2'],'account_name':match['player2']}],
                 'match': match, 'board_id': BOARDS[job['board']], 'tournament_name': t['name'],
                 'paused': not t['autodarts_enabled'] or bool(t['archived_at']),
                 'lobby_payload': GameSettings.model_validate(t['game_settings']).lobby()}
@@ -129,25 +121,13 @@ def install(app, database, get_tournament, detail):
             boards = [dict(r) for r in db.execute('SELECT name,board_id,last_seen,status FROM board_bridges ORDER BY name')]
             for b in boards:
                 b['online'] = bool(b['last_seen'] and time.time() - b['last_seen'] < 25)
-                b['paired'] = bool(db.execute('SELECT key_hash FROM board_bridges WHERE name=?', (b['name'],)).fetchone()[0])
+
             jobs = [dict(r) for r in db.execute('''SELECT j.id,j.board,j.phase,j.error,j.lobby_id,j.autodarts_match_id,
                  m.tournament_id,m.number FROM bridge_jobs j JOIN matches m ON m.id=j.match_id WHERE j.phase!='done' ''')]
             return {'boards': boards, 'jobs': jobs}
 
-    @app.post('/api/integration/boards/{board_name}/pair')
-    def pair(board_name: str, x_integration_key: str | None = Header(default=None)):
-        admin(x_integration_key)
-        if board_name not in BOARDS:
-            raise HTTPException(404, 'Scheibe nicht gefunden.')
-        key = secrets.token_urlsafe(32)
-        with database() as db:
-            db.execute('UPDATE board_bridges SET key_hash=?,last_seen=NULL,status=? WHERE name=?',
-                       (hashlib.sha256(key.encode()).hexdigest(), 'Script verbinden', board_name))
-        return {'key': key, 'board': board_name, 'board_id': BOARDS[board_name]}
-
     @app.post('/api/tournaments/{tournament_id}/automation')
-    def automation(tournament_id: str, body: Automation, x_integration_key: str | None = Header(default=None)):
-        admin(x_integration_key)
+    def automation(tournament_id: str, body: Automation):
         with database() as db:
             db.execute('BEGIN IMMEDIATE')
             t = get_tournament(db, tournament_id)
@@ -161,8 +141,7 @@ def install(app, database, get_tournament, detail):
             return detail(db, tournament_id)
 
     @app.post('/api/tournaments/{tournament_id}/game-settings')
-    def settings(tournament_id: str, body: GameSettings, x_integration_key: str | None = Header(default=None)):
-        admin(x_integration_key)
+    def settings(tournament_id: str, body: GameSettings):
         with database() as db:
             db.execute('BEGIN IMMEDIATE')
             t = get_tournament(db, tournament_id)
@@ -174,8 +153,7 @@ def install(app, database, get_tournament, detail):
             return detail(db, tournament_id)
 
     @app.post('/api/integration/jobs/{job_id}/reset')
-    def reset(job_id: str, x_integration_key: str | None = Header(default=None)):
-        admin(x_integration_key)
+    def reset(job_id: str):
         with database() as db:
             db.execute('BEGIN IMMEDIATE')
             job = db.execute('SELECT * FROM bridge_jobs WHERE id=?', (job_id,)).fetchone()
@@ -191,10 +169,10 @@ def install(app, database, get_tournament, detail):
             return {'reset': job_id}
 
     @app.post('/api/bridge/poll')
-    def poll(body: Poll, authorization: str | None = Header(default=None)):
+    def poll(body: Poll, x_board_id: str | None = Header(default=None)):
         with database() as db:
             db.execute('BEGIN IMMEDIATE')
-            board = authenticate(db, authorization)
+            board = authenticate(db, x_board_id)
             now = time.time()
             db.execute('UPDATE board_bridges SET last_seen=?,status=? WHERE name=?', (now, body.status, board['name']))
             existing = db.execute('''SELECT j.* FROM bridge_jobs j JOIN matches m ON m.id=j.match_id
@@ -218,16 +196,16 @@ def install(app, database, get_tournament, detail):
             if not row:
                 return idle
             ident = str(uuid4())
-            db.execute('INSERT INTO bridge_jobs(id,match_id,board,owner,lease_until,revision) VALUES(?,?,?,?,?,?)',
-                       (ident, row['id'], board['name'], body.instance, now+75, row['revision']))
+            db.execute('INSERT INTO bridge_jobs(id,match_id,board,owner,lease_until,revision,participants) VALUES(?,?,?,?,?,?,?)',
+                       (ident, row['id'], board['name'], body.instance, now+75, row['revision'],json.dumps(participants(db,[row['player1'],row['player2']]))))
             job = dict(db.execute('SELECT * FROM bridge_jobs WHERE id=?', (ident,)).fetchone())
             return {'job': job_payload(db, job)}
 
     @app.post('/api/bridge/jobs/{job_id}/state')
-    def update_job(job_id: str, body: JobUpdate, authorization: str | None = Header(default=None)):
+    def update_job(job_id: str, body: JobUpdate, x_board_id: str | None = Header(default=None)):
         with database() as db:
             db.execute('BEGIN IMMEDIATE')
-            board = authenticate(db, authorization)
+            board = authenticate(db, x_board_id)
             job = owned_job(db, board, job_id, body.instance)
             allowed = {'queued': 'creating', 'creating': 'lobby', 'lobby': 'starting', 'starting': 'playing'}
             if body.phase != job['phase'] and allowed.get(job['phase']) != body.phase:
@@ -243,6 +221,9 @@ def install(app, database, get_tournament, detail):
                 raise HTTPException(422, 'Lobby-ID fehlt.')
             if body.phase in ['starting', 'playing'] and (not users or len(set(users)) != 2 or any(not u or len(u)>80 for u in users)):
                 raise HTTPException(422, 'Zwei eindeutige Spieleraccounts erforderlich.')
+            planned=json.loads(job['participants']) if job['participants'] else None
+            if users and planned and any(not p['account_name'] and users[i]!='local:'+p['name'].strip().lower() for i,p in enumerate(planned)):
+                raise HTTPException(422,'Lokale Teilnehmer stimmen nicht mit dem Auftrag überein.')
             if body.phase == 'playing' and not match_id:
                 raise HTTPException(422, 'Match-ID fehlt.')
             if job['lobby_id'] and lobby_id != job['lobby_id'] or job['autodarts_match_id'] and match_id != job['autodarts_match_id'] or job['user_ids'] and json.loads(job['user_ids']) != users:
@@ -252,10 +233,10 @@ def install(app, database, get_tournament, detail):
             return {'job': job_payload(db, dict(db.execute('SELECT * FROM bridge_jobs WHERE id=?', (job_id,)).fetchone()))}
 
     @app.post('/api/bridge/jobs/{job_id}/result')
-    def result(job_id: str, body: Result, authorization: str | None = Header(default=None)):
+    def result(job_id: str, body: Result, x_board_id: str | None = Header(default=None)):
         with database() as db:
             db.execute('BEGIN IMMEDIATE')
-            board = authenticate(db, authorization)
+            board = authenticate(db, x_board_id)
             job = owned_job(db, board, job_id, body.instance)
             match = db.execute('SELECT * FROM matches WHERE id=?', (job['match_id'],)).fetchone()
             t = get_tournament(db, match['tournament_id'])

@@ -6,6 +6,7 @@ Autodarts-Account-Portal ist eine getrennte Anwendung.
 
 ## Funktionen
 
+- Spielerverwaltung mit Anzeigenamen und optionalen Autodarts-Accounts. Blaue Haken kennzeichnen zugewiesene Accounts; ohne Account spielt man als lokaler Gast.
 - Spielerauswahl per Ein-Klick-Shortcuts aus gespeicherten Turnieren.
   Muli, Bruce, Ly, Schlatho, Michel, Rote, Manuel und Swobi sind vorbelegt.
 - Ausgewählte Teilnehmer mit dem kleinen × entfernen; der Shortcut bleibt
