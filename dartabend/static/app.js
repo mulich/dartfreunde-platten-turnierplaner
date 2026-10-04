@@ -83,11 +83,12 @@ function matchCard(m) {
 }
 let selectedPlayers = [];
 let shortcuts = [];
+const removingShortcuts = new Set();
 let createVersion = 0;
 const playerKey = name => name.toLocaleLowerCase('de');
 function renderPlayerPicker() {
   const selected = new Set(selectedPlayers.map(playerKey));
-  document.querySelector('#player-shortcuts').innerHTML = shortcuts.map((name, index) => `<button type="button" class="player-shortcut ${selected.has(playerKey(name))?'chosen':''}" data-player-index="${index}" aria-label="${esc(name)} hinzufügen" ${selected.has(playerKey(name))?'disabled':''}>${selected.has(playerKey(name))?'✓':'＋'} ${esc(name)} ${accountBadge(name)}</button>`).join('');
+  document.querySelector('#player-shortcuts').innerHTML = shortcuts.map((name, index) => `<span class="player-shortcut-item"><button type="button" class="player-shortcut ${selected.has(playerKey(name))?'chosen':''}" data-player-index="${index}" aria-label="${esc(name)} hinzufügen" ${selected.has(playerKey(name))?'disabled':''}>${selected.has(playerKey(name))?'✓':'＋'} ${esc(name)} ${accountBadge(name)}</button><button type="button" class="remove-shortcut" data-remove-shortcut="${index}" aria-label="${esc(name)} aus Schnell-Auswahlliste entfernen" title="Aus Schnell-Auswahlliste entfernen" ${removingShortcuts.has(playerKey(name))?'disabled':''}>×</button></span>`).join('');
   document.querySelector('#selected-players').innerHTML = selectedPlayers.length ? selectedPlayers.map((name, index) => `<span class="player-chip"><span>${esc(name)} ${accountBadge(name)}</span><button type="button" data-remove-player="${index}" aria-label="${esc(name)} entfernen" title="Entfernen">×</button></span>`).join('') : '<span class="no-players">Keine Spieler ausgewählt</span>';
   updatePlanSummary();
 }
@@ -155,7 +156,29 @@ document.querySelectorAll('[data-page]').forEach(el=>el.onclick=()=>{state.searc
 document.querySelector('#close-dialog').onclick=()=>dialog.close();
 document.querySelector('#add-player').onclick=addTypedPlayer;
 document.querySelector('#player-name').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();addTypedPlayer();}};
+async function removeShortcut(name) {
+  const key=playerKey(name);
+  if(removingShortcuts.has(key))return;
+  const profile=profiles.find(p=>playerKey(p.name)===key);
+  const status=document.querySelector('#shortcut-status');
+  if(!profile){status.textContent='Spielerliste bitte erneut öffnen und aktualisieren.';return;}
+  const version=createVersion;
+  removingShortcuts.add(key);renderPlayerPicker();status.textContent='';
+  try {
+    await api(`/api/player-profiles/${profile.id}?revision=${profile.revision}`,{method:'DELETE'});
+    if(version!==createVersion || !dialog.open)return;
+    shortcuts=shortcuts.filter(p=>playerKey(p)!==key);
+    status.textContent=`${name} aus der Schnell-Auswahlliste entfernt.`;
+  } catch(error) {
+    if(version===createVersion && dialog.open)status.textContent=error.message;
+  } finally {
+    removingShortcuts.delete(key);
+    if(version===createVersion && dialog.open)renderPlayerPicker();
+  }
+}
 document.querySelector('#player-shortcuts').onclick=e=>{
+  const remove=e.target.closest('[data-remove-shortcut]');
+  if(remove){if(!remove.disabled)removeShortcut(shortcuts[Number(remove.dataset.removeShortcut)]);return;}
   const button=e.target.closest('[data-player-index]');
   if(button&&!button.disabled)addPlayer(shortcuts[Number(button.dataset.playerIndex)]);
 };

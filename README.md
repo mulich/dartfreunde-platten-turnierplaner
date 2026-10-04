@@ -10,7 +10,9 @@ Autodarts-Account-Portal ist eine getrennte Anwendung.
 - Spielerauswahl per Ein-Klick-Shortcuts aus gespeicherten Turnieren.
   Muli, Bruce, Ly, Schlatho, Michel, Rote, Manuel und Swobi sind vorbelegt.
 - Ausgewählte Teilnehmer mit dem kleinen × entfernen; der Shortcut bleibt
-  für spätere Turniere verfügbar. Neue Namen können manuell hinzugefügt werden.
+  für spätere Turniere verfügbar. Das × direkt am Shortcut entfernt ihn dauerhaft
+  aus der Schnell-Auswahlliste, ohne bestehende Ergebnisse oder ausgewählte
+  Teilnehmer zu verändern. Neue Namen können manuell hinzugefügt werden.
 - Jeder-gegen-jeden-Turniere mit 2–64 Spielern und zwei oder drei Scheiben.
 - Originalregeln für zufällige Paarungen, Scheibenverteilung und möglichst faire
   Anwürfe. Scheiben: Rot, Blau, optional Schwarz. Spieler 1 wirft an.

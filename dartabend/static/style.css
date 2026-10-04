@@ -321,3 +321,10 @@ dialog{padding:22px}
 @media(max-width:800px){.sidebar{flex-wrap:wrap}}
 @media(max-width:520px){.sidebar nav{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px}.sidebar .nav-item{width:100%;min-width:0;padding:9px 2px;font-size:10px;gap:2px}}
 .statistics-table th{position:relative}
+
+/* Remove persistent shortcuts without changing selected participants. */
+.player-shortcut-item{display:inline-flex;align-items:stretch;border:1px solid var(--line);border-radius:6px;background:#20364b;max-width:100%}
+.player-shortcut-item .player-shortcut{border:0;border-radius:5px 0 0 5px;min-width:0;overflow-wrap:anywhere}
+.player-shortcut-item .remove-shortcut{border:0;border-left:1px solid var(--line);border-radius:0 5px 5px 0;background:transparent;color:var(--muted);font-size:17px;line-height:1;width:28px;flex-shrink:0;padding:0;cursor:pointer}
+.player-shortcut-item .remove-shortcut:hover{background:#492c3a;color:#ffaaaa}
+.player-shortcut-item .remove-shortcut:disabled{cursor:wait}
