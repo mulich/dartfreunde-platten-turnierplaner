@@ -2,8 +2,8 @@
 const vm=require('node:vm'), fs=require('node:fs'), assert=require('node:assert/strict');
 const source=fs.readFileSync('dartabend/static/turnier-blau.user.js','utf8');
 const board='faa2cd5f-5d19-4e68-9749-1b7b95c753d4';
-async function exercise(ambiguous=false,local=false,guests=false) {
-  let tick,lobby,ended=false,done=false;const calls=[], storage=new Map();
+async function exercise(ambiguous=false,local=false,guests=false,emptyNull=false,dropBeforeMove=false) {
+  let tick,lobby,ended=false,done=false,dropped=false;const calls=[], storage=new Map();
   let job={id:'job-1',phase:'queued',user_ids:null,match:{player1:'Alice',player2:'Bob'},lobby_payload:{variant:'X01',isPrivate:true,bullOffMode:'Off',legs:2,settings:{baseScore:501,inMode:'Straight',outMode:'Double',bullMode:'25/50',maxRounds:50}}};
   if(local)job.participants=[{name:'Alice',account_name:guests?null:'Alice'},{name:'Bob',account_name:null}];
   const key='dfp-turnier-'+board;
@@ -29,7 +29,11 @@ async function exercise(ambiguous=false,local=false,guests=false) {
       if(ambiguous)throw Error('Ambiguous external write');
       lobby={id:'lobby-1',...body,host:{id:'host'},players:[{userId:'host',boardId:board}]};return lobby;
     }
-    if(path==='/gs/v0/lobbies/lobby-1')return lobby;
+    if(path==='/gs/v0/lobbies/lobby-1'){
+      if(emptyNull && !lobby.players.length)return {...lobby,players:null};
+      if(dropBeforeMove && !dropped && lobby.players.length===2 && lobby.players.every(p=>p.boardId===board&&!p.isPending)){dropped=true;return {...lobby,players:null};}
+      return lobby;
+    }
     if(path.endsWith('/players/by-index/0')&&r.method==='DELETE'){lobby.players.splice(0,1);return {};}
     if(path==='/gs/v0/lobbies/lobby-1/players'&&r.method==='POST'){assert(['Alice','Bob'].includes(body.name));assert.equal(body.boardId,board);lobby.players.unshift({name:body.name,boardId:board});return {};}
     if(path.includes('/invitations/')){lobby.players.unshift({userId:path.split('/').pop(),isPending:true,boardId:null});return {};}
@@ -55,10 +59,10 @@ async function exercise(ambiguous=false,local=false,guests=false) {
   await tick(); // Invitations are pending; retries must not duplicate them.
   assert.equal(calls.filter(c=>c.url?.includes('/invitations/')).length,guests?0:local?1:2);
   lobby.players.forEach(p=>p.isPending=false);
-  await tick();assert.equal(job.phase,'playing');assert(!done);
+  await tick();if(dropBeforeMove){assert.equal(job.phase,'lobby');assert(!calls.some(c=>c.url?.endsWith('/start')));await tick();}assert.equal(job.phase,'playing');assert(!done);
   assert(calls.some(c=>c.navigate==='https://play.autodarts.com/matches/match-1'));
   ended=true;await tick();assert(done);
   assert.equal(calls.filter(c=>c.url?.endsWith('/start')).length,1);
   assert.equal(calls.filter(c=>c.url?.endsWith('/gs/v0/lobbies')&&c.method==='POST').length,1);
 }
-(async()=>{await exercise();await exercise(true);await exercise(false,true);await exercise(false,true,true);process.stdout.write('Board flow and ambiguous-write recovery passed\n');})().catch(e=>{console.error(e);process.exit(1);});
+(async()=>{await exercise();await exercise(true);await exercise(false,true);await exercise(false,true,true);await exercise(false,false,false,true);await exercise(false,true,true,true);await exercise(false,false,false,false,true);process.stdout.write('Board flow and ambiguous-write recovery passed\n');})().catch(e=>{console.error(e);process.exit(1);});

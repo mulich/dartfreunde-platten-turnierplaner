@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dartfreunde Platten – Turnier-Board Blau
 // @namespace    dartfreunde-platten-turnierplaner
-// @version      2.1.0
+// @version      2.1.1
 // @description  Private Turnier-Lobbys, Einladungen und Ergebnisübernahme für Blau.
 // @match        https://play.autodarts.com/*
 // @run-at       document-start
@@ -54,6 +54,17 @@
     if (scores.some(s => s === null) || Math.max(...scores) !== job.lobby_payload.legs || Math.min(...scores) >= job.lobby_payload.legs) return null;
     return {score1:scores[0], score2:scores[1], user_ids:job.user_ids, autodarts_match_id:job.autodarts_match_id};
   }
+  function normalizeLobby(lobby, id) {
+    if(!lobby || lobby.id!==id || !Object.hasOwn(lobby,'players'))throw new Error('Lobby-Antwort unvollständig. Wartet auf aktuellen Autodarts-Status.');
+    // An empty Autodarts lobby may serialize its player list as null.
+    const players=lobby.players===null?[]:lobby.players;
+    if(!Array.isArray(players) || players.some(p=>!p || typeof p!=='object'))throw new Error('Lobby-Spielerliste nicht verfügbar. Wartet auf aktuellen Autodarts-Status.');
+    return {...lobby,players};
+  }
+  function completePlayers(lobby,job) {
+    return lobby.players.length===2 && !lobby.players.some(p=>p.isPending || p.cpuPPR)
+      && job.user_ids.every((id,index)=>lobby.players.filter(p=>matchesPlayer(p,index,job)).length===1);
+  }
   function correctLobby(lobby, job) {
     if (!lobby?.isPrivate || !Array.isArray(lobby.players)) return false;
     const expected=job.lobby_payload;
@@ -84,7 +95,7 @@
   }
   // Pure adapters are exercised using fixtures; requiring this file never enables automation.
   if (typeof module === 'object' && module.exports) {
-    module.exports = {resolvePlayers, finalResult, correctLobby, parseResponse, matchesPlayer, localKey};
+    module.exports = {resolvePlayers, finalResult, correctLobby, parseResponse, matchesPlayer, localKey, normalizeLobby};
     return;
   }
   const instance = crypto.randomUUID();
@@ -168,15 +179,18 @@
     GM_setValue(cacheKey,{job:job.id,lobby_id:lobby.id,user_ids:users.map(u=>u.id),host:sub});
     return phase(job,'lobby',{lobby_id:lobby.id,user_ids:users.map(u=>u.id)});
   }
+  async function loadLobby(job) {
+    return normalizeLobby(await autodarts(`/gs/v0/lobbies/${job.lobby_id}`),job.lobby_id);
+  }
   async function arrange(job) {
-    let lobby=await autodarts(`/gs/v0/lobbies/${job.lobby_id}`);
+    let lobby=await loadLobby(job);
     let account;try{account=JSON.parse(atob(bearer.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).sub;}catch{}
     if(!account||lobby.host?.id!==account||lobby.isPrivate!==true)throw new Error('Private Gastgeber-Lobby nicht bestätigt.');
     // Newly created lobbies may contain the board account. Keep it only if it is one of the scheduled players.
     const hostIndex=lobby.players.findIndex(p=>p.userId===lobby.host.id && !job.user_ids.includes(p.userId));
     if(hostIndex>=0) {
       await autodarts(`/gs/v0/lobbies/${job.lobby_id}/players/by-index/${hostIndex}`,'DELETE');
-      lobby=await autodarts(`/gs/v0/lobbies/${job.lobby_id}`);
+      lobby=await loadLobby(job);
     }
     if(lobby.players.some(p=>!job.user_ids.some((id,index)=>matchesPlayer(p,index,job))))throw new Error('Unerwarteter Teilnehmer in der Lobby. Manuell prüfen.');
     const record=GM_getValue(cacheKey,{job:job.id});
@@ -193,19 +207,22 @@
         record.invited.push(id);GM_setValue(cacheKey,record);
         await autodarts(`/gs/v0/lobbies/${job.lobby_id}/invitations/${encodeURIComponent(id)}`,'POST');
       }
-      lobby=await autodarts(`/gs/v0/lobbies/${job.lobby_id}`);
+      lobby=await loadLobby(job);
     }
-    lobby=await autodarts(`/gs/v0/lobbies/${job.lobby_id}`);
+    lobby=await loadLobby(job);
     if(lobby.players.length!==2 || lobby.players.some(p=>p.isPending)) {show('Wartet auf die Annahme der Account-Einladungen');return job;}
     for(let index=0;index<lobby.players.length;index++) {
       if(lobby.players[index].boardId!==BOARD_ID)await autodarts(`/gs/v0/lobbies/${job.lobby_id}/players/by-index/${index}/host`,'PUT',{boardId:BOARD_ID});
     }
-    lobby=await autodarts(`/gs/v0/lobbies/${job.lobby_id}`);
+    lobby=await loadLobby(job);
+    if(!completePlayers(lobby,job)){show('Wartet auf vollständige Lobby-Spielerliste');return job;}
     for(let target=0;target<job.user_ids.length;target++) {
       const index=lobby.players.findIndex(p=>matchesPlayer(p,target,job));
+      if(index<0){show('Wartet auf bestätigte Teilnehmer');return job;}
       if(index!==target) {
         await autodarts(`/gs/v0/lobbies/${job.lobby_id}/players/move/to-index`,'POST',{index,toIndex:target});
-        lobby=await autodarts(`/gs/v0/lobbies/${job.lobby_id}`);
+        lobby=await loadLobby(job);
+        if(!completePlayers(lobby,job)){show('Wartet auf vollständige Lobby-Spielerliste');return job;}
       }
     }
     if(!await boardReady()){show('Scheibe inzwischen belegt · wartet');return job;}

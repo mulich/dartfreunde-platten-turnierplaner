@@ -6,7 +6,7 @@ https://dartportal.mulich.de/
 ## Update
 
 Beide Container auf die neue Version aktualisieren und auf jedem PC das neue
-Scheiben-Script **2.1.0** installieren bzw. in Tampermonkey aktualisieren:
+Scheiben-Script **2.1.1** installieren bzw. in Tampermonkey aktualisieren:
 
 - Blau: https://dartportal.mulich.de/static/turnier-blau.user.js
 - Rot: https://dartportal.mulich.de/static/turnier-rot.user.js

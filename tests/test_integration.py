@@ -201,3 +201,21 @@ def test_userscript_proxy_errors_distinguish_basic_auth_and_board_key():
     assert.equal(parseResponse({status:204,responseText:''},'https://api.autodarts.com/gs/v0/lobbies/id/players/by-index/0'),null);
     '''
     subprocess.run(['node','-e',code,str(script)],check=True,capture_output=True,text=True)
+
+
+def test_lobby_null_list_is_empty_but_invalid_responses_are_rejected():
+    script=Path(__file__).resolve().parents[1]/'dartabend/static/turnier-blau.user.js'
+    code=r'''
+    const assert=require('node:assert/strict');
+    const {normalizeLobby}=require(process.argv[1]);
+    const empty={id:'lobby',host:{id:'host'},isPrivate:true,players:null};
+    assert.deepEqual(normalizeLobby(empty,'lobby').players,[]);
+    assert.equal(empty.players,null);
+    const players=[{userId:'account'}];
+    assert.equal(normalizeLobby({...empty,players},'lobby').players,players);
+    assert.throws(()=>normalizeLobby({...empty,id:'other'},'lobby'),/unvollständig/);
+    assert.throws(()=>normalizeLobby({id:'lobby'},'lobby'),/unvollständig/);
+    assert.throws(()=>normalizeLobby({...empty,players:[null]},'lobby'),/Spielerliste/);
+    assert.throws(()=>normalizeLobby(null,'lobby'),/unvollständig/);
+    '''
+    subprocess.run(['node','-e',code,str(script)],check=True,capture_output=True,text=True)
