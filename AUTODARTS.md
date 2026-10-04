@@ -53,6 +53,31 @@ Ein Aufruf ohne Board-Schlüssel muss anschließend eine JSON-Antwort
 `{"detail":"Board-Schlüssel ungültig."}` mit HTTP 401 liefern, keine HTML-Loginseite.
 Das ist die erwartete Antwort der Anwendung und bestätigt die Weiterleitung.
 
+### Nginx Proxy Manager
+
+Den Proxy Host für `turnier.mulich.de` bearbeiten. Die Access List unter **Details**
+beibehalten. Im Haupt-Reiter **Advanced** folgenden Location-Block ergänzen
+(nicht im Zahnrad einer Custom Location, da diese je nach Version die Access List
+wieder einfügt). Falls bereits eine Custom Location `/api/bridge/` existiert,
+diese vorher entfernen, damit kein doppelter Location-Block entsteht.
+
+```nginx
+location ^~ /api/bridge/ {
+    auth_basic off;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header Authorization $http_authorization;
+    proxy_pass $forward_scheme://$server:$port;
+}
+```
+
+Diese Variablen stammen aus dem normalen Proxy Host und übernehmen dessen
+Zieladresse, Port und Protokoll. Speichern und prüfen, dass der Host weiterhin
+Online ist. Keine Änderung an der Access List für die restliche Website nötig.
+Referenz für die Variablen und getrennte Standard-Location:
+https://github.com/NginxProxyManager/nginx-proxy-manager/blob/develop/backend/templates/proxy_host.conf
+
 ## Einmalige Einrichtung
 
 1. Auf jedem Scheiben-PC Tampermonkey installieren. Im Accountportal den Abschnitt
