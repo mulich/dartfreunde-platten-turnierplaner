@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Dartfreunde Platten – Turnier-Board Rot
 // @namespace    dartfreunde-platten-turnierplaner
-// @version      2.1.2
-// @description  Private Turnier-Lobbys, Einladungen und Ergebnisübernahme für Rot.
+// @version      2.2.0
+// @description  Automatische Scheibenerkennung für rot, blau und schwarz; Lobbys und Ergebnisübernahme.
 // @match        https://play.autodarts.com/*
 // @run-at       document-start
 // @noframes
@@ -19,8 +19,19 @@
 
 (() => {
   'use strict';
-  const BOARD = 'Rot';
-  const BOARD_ID = 'ad381dc0-7e86-45a1-9fa8-61c8b18ec89b';
+  const BOARDS = [{"name": "Blau", "account": "blau", "id": "faa2cd5f-5d19-4e68-9749-1b7b95c753d4"}, {"name": "Rot", "account": "rot", "id": "ad381dc0-7e86-45a1-9fa8-61c8b18ec89b"}, {"name": "Schwarz", "account": "schwarz", "id": "6e390006-cdba-4ac5-b0bb-0e03eb880af6"}];
+  let BOARD = 'Account erkennen';
+  let BOARD_ID = '';
+  function boardForAccount(user) {
+    if(!user?.id || typeof user.name!=='string')return null;
+    return BOARDS.find(board=>normalize(board.account)===normalize(user.name)) || null;
+  }
+  function tokenSubject(token) {
+    try {
+      const sub=JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).sub;
+      return typeof sub==='string' && sub ? sub : '';
+    } catch {return '';}
+  }
   const SERVER = 'https://turnier.mulich.de';
   const API = 'https://api.autodarts.com';
   const normalize = value => String(value || '').trim().toLocaleLowerCase('de');
@@ -65,12 +76,12 @@
     return lobby.players.length===2 && !lobby.players.some(p=>p.isPending || p.cpuPPR)
       && job.user_ids.every((id,index)=>lobby.players.filter(p=>matchesPlayer(p,index,job)).length===1);
   }
-  function correctLobby(lobby, job) {
+  function correctLobby(lobby, job, boardId=BOARD_ID) {
     if (!lobby?.isPrivate || !Array.isArray(lobby.players)) return false;
     const expected=job.lobby_payload;
     if(lobby.variant!==expected.variant || lobby.legs!==expected.legs || lobby.bullOffMode!==expected.bullOffMode || Object.entries(expected.settings).some(([key,value])=>lobby.settings?.[key]!==value))return false;
     const players = lobby.players;
-    return players.length === 2 && players.every(p => !p.isPending && !p.cpuPPR && p.boardId === BOARD_ID)
+    return players.length === 2 && players.every(p => !p.isPending && !p.cpuPPR && p.boardId === boardId)
       && job.user_ids.every((id, index) => matchesPlayer(players[index],index,job));
   }
   function parseResponse(response, url) {
@@ -95,24 +106,32 @@
   }
   // Pure adapters are exercised using fixtures; requiring this file never enables automation.
   if (typeof module === 'object' && module.exports) {
-    module.exports = {resolvePlayers, finalResult, correctLobby, parseResponse, matchesPlayer, localKey, normalizeLobby};
+    module.exports = {resolvePlayers, finalResult, correctLobby, parseResponse, matchesPlayer, localKey, normalizeLobby, boardForAccount};
     return;
   }
+  // Legacy download links remain supported; only one agent may run in this page.
+  if(unsafeWindow.__dfpTournamentAgent)return;
+  unsafeWindow.__dfpTournamentAgent=true;
   const instance = crypto.randomUUID();
-  const storage = `dfp-turnier-${BOARD_ID}`;
+  let storage = 'dfp-turnier-auto';
+  let accountSubject = '';
+  let accountChanged = false;
   let config = {enabled:GM_getValue(storage, {enabled:true}).enabled!==false};
   let bearer = '';
   let message = 'Automatik aus';
   let ticking = false;
   let panel;
   let currentJob;
-  const cacheKey = storage + '-pending';
+  let cacheKey = storage + '-pending';
   const acceptedUrl = url => {
     try { return new URL(url, location.href).origin === API; } catch { return false; }
   };
   function capture(value) {
     const match = typeof value === 'string' && value.match(/^Bearer\s+(.+)$/i);
-    if (match) bearer = match[1];
+    if (match) {
+      bearer = match[1];
+      if(accountSubject && tokenSubject(bearer)!==accountSubject)accountChanged=true;
+    }
   }
   // Observe only requests to the exact Autodarts API origin; never log or transmit credentials to the planner.
   const requests = new WeakMap();
@@ -131,6 +150,7 @@
   };
   function show(text) { message = text; if(panel)panel.querySelector('[data-status]').textContent=text; }
   function request(url, method='GET', data, headers={}) {
+    if(accountChanged)throw new Error('Autodarts-Account gewechselt. Seite neu laden, um die Scheibe neu zu erkennen.');
     return new Promise((resolve, reject) => GM_xmlhttpRequest({url, method, timeout:12000, anonymous:new URL(url).origin!==SERVER,
       headers:{'Content-Type':'application/json', ...headers}, data:data===undefined?undefined:JSON.stringify(data),
       onload:r=>{
@@ -143,6 +163,23 @@
     if(!bearer)throw new Error('Autodarts anmelden und Seite neu laden.');
     return request(API+path, method, data, {Authorization:'Bearer '+bearer});
   };
+  async function identifyBoard() {
+    if(accountChanged)throw new Error('Autodarts-Account gewechselt. Seite neu laden, um die Scheibe neu zu erkennen.');
+    if(!bearer){show('Wartet auf Autodarts-Anmeldung');return false;}
+    if(BOARD_ID)return true;
+    const sub=tokenSubject(bearer);
+    if(!sub)throw new Error('Account-Sitzung nicht erkannt.');
+    const user=await autodarts(`/us/v0/users/${encodeURIComponent(sub)}`);
+    if(tokenSubject(bearer)!==sub)throw new Error('Account während Erkennung gewechselt. Seite neu laden.');
+    const board=boardForAccount(user);
+    if(user?.id!==sub || !board) {show('Kein Board-Account: als rot, blau oder schwarz anmelden.');return false;}
+    accountSubject=sub;BOARD=board.name;BOARD_ID=board.id;
+    storage=`dfp-turnier-${BOARD_ID}`;cacheKey=storage+'-pending';
+    config={enabled:GM_getValue(storage,{enabled:true}).enabled!==false};
+    show(config.enabled?'Automatik aktiv':'Board-Script pausiert');
+    if(panel){panel.remove();mount();}
+    return true;
+  }
   async function phase(job, next, extra={}) {
     const r=await planner(`/api/bridge/jobs/${job.id}/state`, {phase:next, ...extra});
     currentJob=r.job;
@@ -248,9 +285,10 @@
     show(`Ergebnis ${result.score1}:${result.score2} übernommen`);
   }
   async function tick() {
-    if(ticking||!config.enabled)return;
+    if(ticking)return;
     ticking=true;
     try {
+      if(!await identifyBoard() || !config.enabled)return;
       let ready=false;
       try{ready=await boardReady();}catch(error){show(error.message);}
       const reply=await planner('/api/bridge/poll',{ready,status:bearer?message:'Wartet auf Autodarts-Anmeldung'});
@@ -277,7 +315,7 @@
     } catch(error) {
       if(error.status===401 && error.service==='autodarts')bearer='';
       show(error.message);
-      if(currentJob)try{await planner(`/api/bridge/jobs/${currentJob.id}/state`,{phase:currentJob.phase,error:error.message.slice(0,240)});}catch{}
+      if(currentJob && !accountChanged)try{await planner(`/api/bridge/jobs/${currentJob.id}/state`,{phase:currentJob.phase,error:error.message.slice(0,240)});}catch{}
     } finally {ticking=false;}
   }
   function configure() {
@@ -285,8 +323,8 @@
     show('Turnierplaner im geöffneten Tab anmelden; danach Script fortsetzen.');
   }
   function toggle() {config.enabled=!config.enabled;GM_setValue(storage,config);show(config.enabled?'Automatik aktiv':'Board-Script pausiert');tick();}
-  GM_registerMenuCommand(`Turnier-Board ${BOARD}: Website anmelden`,configure);
-  GM_registerMenuCommand(`Turnier-Board ${BOARD}: starten/pausieren`,toggle);
+  GM_registerMenuCommand(`Turnier-Board: Website anmelden`,configure);
+  GM_registerMenuCommand(`Turnier-Board: starten/pausieren`,toggle);
   function mount() {
     if(!document.body)return;
     panel=document.createElement('div');

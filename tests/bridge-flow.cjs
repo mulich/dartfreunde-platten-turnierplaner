@@ -24,7 +24,7 @@ async function exercise(ambiguous=false,local=false,guests=false,emptyNull=false
     assert.equal(url.origin,'https://api.autodarts.com');assert.equal(r.headers.Authorization,'Bearer '+token);
     if(path==='/bs/v0/boards/'+board)return {id:board,matchId:job.autodarts_match_id};
     if(path==='/as/v0/friends')return ['Alice','Bob'].map(name=>({requestStatus:'Accepted',user:{id:name.toLowerCase(),name}}));
-    if(path==='/us/v0/users/host')return {id:'host',name:'Board Blau'};
+    if(path==='/us/v0/users/host')return {id:'host',name:'blau'};
     if(path==='/gs/v0/lobbies'&&r.method==='POST'){
       if(ambiguous)throw Error('Ambiguous external write');
       lobby={id:'lobby-1',...body,host:{id:'host'},players:[{userId:'host',boardId:board}]};return lobby;

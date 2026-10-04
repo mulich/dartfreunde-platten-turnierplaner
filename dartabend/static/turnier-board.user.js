@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Dartfreunde Platten – Turnier-Board Blau
+// @name         Dartfreunde Platten – Turnier-Board Automatisch
 // @namespace    dartfreunde-platten-turnierplaner
 // @version      2.2.0
 // @description  Automatische Scheibenerkennung für rot, blau und schwarz; Lobbys und Ergebnisübernahme.
@@ -13,8 +13,8 @@
 // @grant        GM_xmlhttpRequest
 // @connect      turnier.mulich.de
 // @connect      api.autodarts.com
-// @downloadURL  https://dartportal.mulich.de/static/turnier-blau.user.js
-// @updateURL    https://dartportal.mulich.de/static/turnier-blau.user.js
+// @downloadURL  https://dartportal.mulich.de/static/turnier-board.user.js
+// @updateURL    https://dartportal.mulich.de/static/turnier-board.user.js
 // ==/UserScript==
 
 (() => {

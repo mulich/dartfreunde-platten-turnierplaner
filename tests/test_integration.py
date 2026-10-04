@@ -142,16 +142,17 @@ def test_userscript_adapters_and_generated_copies():
     assert.equal(finalResult({finished:true},{...stats,matchStats:[{legsWon:1},{legsWon:1}]},job),null);
     assert.equal(finalResult({finished:true},{...stats,players:[{userId:'wrong'},{userId:'alice'}]},job),null);
     const lobby={...payload,players:[{userId:'alice',boardId:'faa2cd5f-5d19-4e68-9749-1b7b95c753d4'},{userId:'bob',boardId:'faa2cd5f-5d19-4e68-9749-1b7b95c753d4'}]};
-    assert.equal(correctLobby(lobby,job),true);
-    assert.equal(correctLobby({...lobby,players:[...lobby.players].reverse()},job),false);
-    assert.equal(correctLobby({...lobby,legs:3},job),false);
-    assert.equal(correctLobby({...lobby,players:[{...lobby.players[0],isPending:true},lobby.players[1]]},job),false);
+    assert.equal(correctLobby(lobby,job,'faa2cd5f-5d19-4e68-9749-1b7b95c753d4'),true);
+    assert.equal(correctLobby({...lobby,players:[...lobby.players].reverse()},job,'faa2cd5f-5d19-4e68-9749-1b7b95c753d4'),false);
+    assert.equal(correctLobby({...lobby,legs:3},job,'faa2cd5f-5d19-4e68-9749-1b7b95c753d4'),false);
+    assert.equal(correctLobby({...lobby,players:[{...lobby.players[0],isPending:true},lobby.players[1]]},job,'faa2cd5f-5d19-4e68-9749-1b7b95c753d4'),false);
     '''
     subprocess.run(['node','-e',code,str(script)],check=True,capture_output=True,text=True)
     template=(root/'scripts/board-bridge.template.js').read_text()
-    for board,ident in BOARDS.items():
-        expected=template.replace('__BOARD_NAME__',board).replace('__BOARD_ID__',ident).replace('__BOARD_SLUG__',board.lower())
-        assert (root/f'dartabend/static/turnier-{board.lower()}.user.js').read_text()==expected
+    boards=json.dumps([dict(name=name,account=name.lower(),id=ident) for name,ident in BOARDS.items()])
+    for slug,label in [('board','Automatisch'), *[(name.lower(),name) for name in BOARDS]]:
+        expected=template.replace('__BOARDS__',boards).replace('__BOARD_NAME__',label).replace('__BOARD_SLUG__',slug)
+        assert (root/f'dartabend/static/turnier-{slug}.user.js').read_text()==expected
 
 
 def test_legacy_rules_and_changes_do_not_rewrite_results(client):
@@ -219,3 +220,8 @@ def test_lobby_null_list_is_empty_but_invalid_responses_are_rejected():
     assert.throws(()=>normalizeLobby(null,'lobby'),/unvollständig/);
     '''
     subprocess.run(['node','-e',code,str(script)],check=True,capture_output=True,text=True)
+
+
+def test_board_account_detection_before_automation():
+    root=Path(__file__).parents[1]
+    subprocess.run(['node','tests/board-account.cjs'],cwd=root,check=True,capture_output=True,text=True)

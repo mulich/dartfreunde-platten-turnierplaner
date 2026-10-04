@@ -6,11 +6,16 @@ https://dartportal.mulich.de/
 ## Update
 
 Beide Container auf die neue Version aktualisieren und auf jedem PC das neue
-Scheiben-Script **2.1.2** installieren bzw. in Tampermonkey aktualisieren:
+Scheiben-Script **2.2.0** installieren bzw. in Tampermonkey aktualisieren:
 
-- Blau: https://dartportal.mulich.de/static/turnier-blau.user.js
-- Rot: https://dartportal.mulich.de/static/turnier-rot.user.js
-- Schwarz: https://dartportal.mulich.de/static/turnier-schwarz.user.js
+https://dartportal.mulich.de/static/turnier-board.user.js
+
+Das gleiche Script auf allen drei PCs installieren; alte Turnier-Board-Scripts
+vorher deaktivieren. Es liest den angemeldeten Autodarts-Account: `blau`, `rot`
+und `schwarz` werden automatisch ihren festen Board-IDs zugeordnet
+(Groß-/Kleinschreibung wird ignoriert). Andere Accounts bleiben inaktiv.
+Nach einem Accountwechsel die Autodarts-Seite neu laden. Die bisherigen
+Download-URLs bleiben für Updates erhalten und erkennen ebenfalls den Account.
 
 Jeweils im Compose-Verzeichnis:
 
@@ -63,7 +68,7 @@ ein bereits beanspruchter Board-Auftrag speichert seine Teilnehmerzuordnung fest
 
 ## Board-PCs einrichten
 
-1. Tampermonkey und das passende Scheiben-Script installieren.
+1. Tampermonkey und das gemeinsame Board-Script installieren.
 2. Auf dem PC bei https://play.autodarts.com/ mit dem zugehörigen Board-Account
    anmelden und die Seite neu laden. Der Turnierplaner-Login muss im selben
    Browserprofil erfolgt sein. Es gibt keine zusätzliche Schlüsselkopplung.
