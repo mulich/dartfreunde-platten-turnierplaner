@@ -63,8 +63,16 @@ muss vorhanden sein. Dann:
 
 ```sh
 cd /opt/dartabend
+docker compose pull
 docker compose up -d
 ```
+
+Die Server-Datei verwendet das Format 3.5 und unterstützt auch ältere
+Installationen mit `docker-compose` (mit Bindestrich). Dort die Befehle mit
+`docker-compose` statt `docker compose` ausführen. Wird die Datei als
+`docker-compose.yml` gespeichert, erkennt auch diese ältere Variante sie
+automatisch. Vor dem Start oder Update `pull` ausführen, um das aktuelle Image
+zu laden; die Datei verwendet kein `pull_policy`.
 
 Danach `http://SERVER-IP:18081` öffnen. In Portainer kann der Inhalt der YAML-Datei
 als Stack eingefügt werden. Der Server benötigt keine Python-Installation.

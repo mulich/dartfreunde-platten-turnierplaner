@@ -1,8 +1,7 @@
-name: dartfreunde-platten-turnierplaner
+version: "3.5"
 services:
   turnierplaner:
     image: ghcr.io/mulich/dartfreunde-platten-turnierplaner:latest
-    pull_policy: always
     restart: unless-stopped
     ports:
       - "${TOURNAMENT_PORT:-18081}:8000"
