@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dartfreunde Platten – Turnier-Board Schwarz
 // @namespace    dartfreunde-platten-turnierplaner
-// @version      2.3.0
+// @version      2.4.0
 // @description  Feste Scheibenzuordnung, Steuerungsrechte, Vollbild und Ergebnisübernahme.
 // @match        https://play.autodarts.com/*
 // @run-at       document-start
@@ -12,6 +12,8 @@
 // @grant        GM_registerMenuCommand
 // @grant        GM_xmlhttpRequest
 // @connect      turnier.mulich.de
+// @connect      dartportal.mulich.de
+// @connect      192.168.178.137
 // @connect      api.autodarts.com
 // @downloadURL  https://dartportal.mulich.de/static/turnier-schwarz.user.js
 // @updateURL    https://dartportal.mulich.de/static/turnier-schwarz.user.js
@@ -34,6 +36,7 @@
     } catch {return '';}
   }
   const SERVER = 'https://turnier.mulich.de';
+  const PORTAL = 'https://dartportal.mulich.de';
   const API = 'https://api.autodarts.com';
   const normalize = value => String(value || '').trim().toLocaleLowerCase('de');
   function resolvePlayers(names, friends, me) {
@@ -176,9 +179,9 @@
     return pending;
   };
   function show(text) { message = text; if(panel)panel.querySelector('[data-status]').textContent=text; }
-  function request(url, method='GET', data, headers={}) {
+  function request(url, method='GET', data, headers={}, timeout=12000) {
     if(accountChanged)throw new Error('Autodarts-Account gewechselt. Seite neu laden, um die Scheibe neu zu erkennen.');
-    return new Promise((resolve, reject) => GM_xmlhttpRequest({url, method, timeout:12000, anonymous:new URL(url).origin!==SERVER,
+    return new Promise((resolve, reject) => GM_xmlhttpRequest({url, method, timeout, anonymous:![SERVER,portalUrl()].includes(new URL(url).origin),
       headers:{'Content-Type':'application/json', ...headers}, data:data===undefined?undefined:JSON.stringify(data),
       onload:r=>{
         try{resolve(parseResponse(r,url));}catch(error){reject(error);}
@@ -186,6 +189,7 @@
     }));
   }
   const planner = (path, data) => request(SERVER+path, 'POST', {instance, ...data}, {'X-Board-ID':BOARD_ID});
+  function portalUrl() {return GM_getValue(storage+'-portal-url',PORTAL);}
   const autodarts = async (path, method='GET', data) => {
     if(!bearer)throw new Error('Wartet auf erneuerte Autodarts-Anmeldung. Bei Bedarf Autodarts-Seite neu laden.');
     const usedToken=bearer;
@@ -345,6 +349,40 @@
     GM_setValue(cacheKey,null);
     show(`Ergebnis ${result.score1}:${result.score2} übernommen`);
   }
+  async function restartLobby(job) {
+    const progress=async step=>{
+      const reply=await planner(`/api/bridge/jobs/${job.id}/restart`,{restart_id:job.restart_id,step});
+      currentJob=reply.job;return reply.job;
+    };
+    if(job.restart_step==='delete') {
+      show('Lobby-Neustart · alte Lobby löschen');
+      if(!await boardReady())throw new Error('Lobby-Neustart blockiert: auf der Scheibe ist noch ein Match aktiv. Zuerst beenden.');
+      let lobby;
+      try{lobby=await loadLobby(job);}catch(error){if(error.status!==404)throw error;}
+      if(lobby) {
+        if(lobby.host?.id!==tokenSubject(bearer))throw new Error('Lobby-Neustart blockiert: Board-Account ist nicht Gastgeber.');
+        try{await autodarts(`/gs/v0/lobbies/${job.lobby_id}`,'DELETE');}catch(error){if(error.status!==404)throw error;}
+        try{await loadLobby(job);throw new Error('Lobby noch vorhanden · Löschung nicht bestätigt.');}catch(error){if(error.status!==404)throw error;}
+      }
+      job=await progress('deleted');
+    }
+    if(!job.restart_ready){show('Lobby-Neustart · kurze Wartezeit');return;}
+    if(job.restart_step==='accounts') {
+      show('Lobby-Neustart · betroffene Accounts zur Startseite');
+      const users=(job.user_ids || []).filter(id=>!id.startsWith('local:') && id!==tokenSubject(bearer));
+      const reply=users.length?await request(portalUrl()+'/api/automation/lobby-recovery','POST',{
+        operation_id:job.restart_id,board_account:BOARD.toLowerCase(),lobby_id:job.lobby_id,user_ids:users,completed_match_ids:job.completed_match_ids || []
+      },{Origin:portalUrl()},45000):{operation_id:job.restart_id,recovered:[]};
+      if(reply.operation_id!==job.restart_id || !Array.isArray(reply.recovered) || [...users].sort().join('|')!==[...reply.recovered].sort().join('|'))throw new Error('Accountzentrale: Neustart nicht vollständig bestätigt.');
+      job=await progress('accounts');
+      show('Lobby-Neustart · wartet auf neue Einladungen');return;
+    }
+    if(job.restart_step==='wait') {
+      await progress('complete');
+      GM_setValue(cacheKey,null);
+      show('Lobby-Neustart bestätigt · neue Lobby wird vorbereitet');
+    }
+  }
   async function tick() {
     if(ticking)return;
     ticking=true;
@@ -359,6 +397,7 @@
       if(!currentJob){show(reply.message || (ready?'Wartet auf nächste Begegnung':bearer?'Scheibe belegt · bestehendes Spiel zuerst beenden':'Autodarts anmelden und Seite neu laden'));return;}
       if(currentJob.paused){show('Turnier-Automatik pausiert oder beendet');return;}
       let job=currentJob;
+      if(job.phase==='restarting'){await restartLobby(job);return;}
       if(['queued','lobby'].includes(job.phase)&&!ready){show('Scheibe belegt oder Autodarts nicht bereit · wartet');return;}
       if(job.phase==='queued')job=await prepare(job);
       const cached=GM_getValue(cacheKey,null);
@@ -385,6 +424,13 @@
   function toggle() {config.enabled=!config.enabled;GM_setValue(storage,config);show(config.enabled?'Automatik aktiv':'Board-Script pausiert');tick();}
   GM_registerMenuCommand(`Turnier-Board: Website anmelden`,configure);
   GM_registerMenuCommand(`Turnier-Board: starten/pausieren`,toggle);
+  GM_registerMenuCommand('Turnier-Board: Accountzentrale anmelden',()=>unsafeWindow.open(portalUrl(),'_blank','noopener'));
+  GM_registerMenuCommand('Turnier-Board: Accountzentrale-Adresse',()=>{
+    const value=unsafeWindow.prompt('Accountzentrale: https://dartportal.mulich.de oder http://192.168.178.137:18080',portalUrl());
+    if(value===null)return;
+    try{const u=new URL(value);if(![PORTAL,'http://192.168.178.137:18080'].includes(u.origin))throw new Error();GM_setValue(storage+'-portal-url',u.origin);show('Adresse der Accountzentrale gespeichert.');}
+    catch{show('Ungültige Adresse der Accountzentrale.');}
+  });
   function mount() {
     if(!document.body)return;
     panel=document.createElement('div');

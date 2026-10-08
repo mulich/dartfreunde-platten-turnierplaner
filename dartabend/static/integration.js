@@ -16,7 +16,8 @@ async function renderIntegration() {
   <div class="detail-actions">${['Blau','Rot','Schwarz'].map(name=>`<a class="button" href="/static/turnier-${name.toLowerCase()}.user.js">${name}: Script installieren</a>`).join('')}</div>
   <p class="field-hint">Je PC nur das Script seiner Scheibe installieren. Das bisherige automatische Script deaktivieren. Vollbild über ⛶ oder F11 aktivieren, falls der Browser den automatischen Start blockiert.</p>
   <div class="bridge-grid">${data.boards.map(b=>`<section class="bridge-card"><h3><i class="dot ${boardColor(b.name)}"></i>${esc(b.name)} <span class="badge ${b.online?'active':''}">${b.online?'Online':'Offline'}</span></h3><p class="field-hint">${esc(b.status || 'Script noch nicht verbunden')}</p><p class="board-ident">${esc(b.board_id)}</p></section>`).join('')}</div>
-  <h3>Verknüpfte Begegnungen</h3>${data.jobs.length?data.jobs.map(j=>`<div class="bridge-job"><div><strong>${esc(j.board)} · Spiel ${j.number}</strong><p>${esc(({queued:'Vorbereiten',creating:'Lobby-Erstellung',lobby:'Einladungen / Lobby',starting:'Matchstart',playing:'Match läuft'})[j.phase] || j.phase)}${j.error?' · '+esc(j.error):''}</p>${j.autodarts_match_id?`<a href="https://play.autodarts.com/matches/${encodeURIComponent(j.autodarts_match_id)}" target="_blank" rel="noopener">Autodarts-Match öffnen</a>`:j.lobby_id?`<a href="https://play.autodarts.com/lobby/${encodeURIComponent(j.lobby_id)}" target="_blank" rel="noopener">Autodarts-Lobby öffnen</a>`:''}</div><button class="button small" data-reset-job="${esc(j.id)}">Zuordnung zurücksetzen</button></div>`).join(''):'<p class="field-hint">Keine offenen Verknüpfungen.</p>'}
+  <h3>Verknüpfte Begegnungen</h3>${data.jobs.length?data.jobs.map(j=>`<div class="bridge-job"><div><strong>${esc(j.board)} · Spiel ${j.number}</strong><p>${esc(({queued:'Vorbereiten',creating:'Lobby-Erstellung',lobby:'Einladungen / Lobby',starting:'Matchstart',playing:'Match läuft',restarting:'Lobby-Neustart'})[j.phase] || j.phase)}${j.error?' · '+esc(j.error):''}</p>${j.autodarts_match_id?`<a href="https://play.autodarts.com/matches/${encodeURIComponent(j.autodarts_match_id)}" target="_blank" rel="noopener">Autodarts-Match öffnen</a>`:j.lobby_id?`<a href="https://play.autodarts.com/lobby/${encodeURIComponent(j.lobby_id)}" target="_blank" rel="noopener">Autodarts-Lobby öffnen</a>`:''}</div><div class="detail-actions">${j.phase==='lobby'?`<button class="button small danger" data-restart-lobby="${esc(j.id)}">Notfall: Lobby neu starten</button>`:''}${j.phase!=='restarting'?`<button class="button small" data-reset-job="${esc(j.id)}">Zuordnung zurücksetzen</button>`:''}</div></div>`).join(''):'<p class="field-hint">Keine offenen Verknüpfungen.</p>'}
+  <p class="field-hint">Notfall-Neustart: alte Lobby löschen → 2 Sekunden warten → betroffene Accounts zur Startseite → 3 Sekunden warten → neue Lobby und Einladungen. Beide Websites und Board-Script benötigen Version 2.4.0. Accountzentrale auf dem Board-PC einmal anmelden (Tampermonkey-Menü). Laufende Matches können hier nicht neu gestartet werden.</p>
   <p class="field-hint">Bei unklarem Lobby-/Matchstart wird kein zweites Spiel erstellt. Automatik pausieren, bestehende Lobby bzw. Match in Autodarts beenden und erst dann die Zuordnung zurücksetzen. Abbrechen oder Löschen im Planer beendet kein Autodarts-Match.</p>`;
 }
 main.addEventListener('click',async e=>{
@@ -25,6 +26,11 @@ main.addEventListener('click',async e=>{
   if(el.matches('[data-reset-job]')) {
     if(!confirm('Zuerst die Turnier-Automatik pausieren und die zugehörige Lobby bzw. das Match in Autodarts beenden. Ist das erledigt?'))return;
     try{await integrationApi(`/api/integration/jobs/${el.dataset.resetJob}/reset`,{});await renderIntegration();toast('Zuordnung zurückgesetzt.');}catch(error){toast(error.message);}
+  }
+  if(el.matches('[data-restart-lobby]')) {
+    if(!confirm('Diese Lobby löschen und neu erstellen? Die betroffenen Spieler-Accounts werden in der Accountzentrale zur Autodarts-Startseite zurückgeführt und erneut eingeladen.'))return;
+    el.disabled=true;
+    try{await integrationApi(`/api/integration/jobs/${el.dataset.restartLobby}/restart`,{});await renderIntegration();toast('Lobby-Neustart angefordert.');}catch(error){el.disabled=false;toast(error.message);}
   }
 });
 

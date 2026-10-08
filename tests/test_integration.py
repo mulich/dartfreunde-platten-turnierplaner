@@ -52,6 +52,53 @@ def playing(client,headers,job):
     return state(client,headers,job,'playing',autodarts_match_id='confirmed-match')
 
 
+def test_emergency_restart_requires_lobby_and_orders_delays(client, monkeypatch):
+    create(client)
+    headers = pair(client)
+    job = poll(client, headers)
+    url = f"/api/integration/jobs/{job['id']}/restart"
+    assert client.post(url).status_code == 409
+    job = state(client, headers, job, 'creating')
+    job = state(client, headers, job, 'lobby', lobby_id='old-lobby', user_ids=['alice-id','bob-id'])
+    assert client.post(url).status_code == 200
+    job = poll(client, headers)
+    operation = job['restart_id']
+    assert client.post(url).status_code == 200
+    assert poll(client, headers)['restart_id'] == operation
+    assert client.post(f"/api/bridge/jobs/{job['id']}/state", headers=headers,
+                       json={'instance':INSTANCE,'phase':'starting'}).status_code == 409
+    clock = __import__('time').time() + 10
+    monkeypatch.setattr('dartabend.integration.time.time', lambda: clock)
+    progress = f"/api/bridge/jobs/{job['id']}/restart"
+    def step(value, **extra):
+        return client.post(progress, headers=headers, json={'instance':INSTANCE,'restart_id':operation,'step':value,**extra})
+    assert step('accounts').status_code == 409
+    assert step('deleted',restart_id='wrong').status_code == 409
+    assert step('deleted').status_code == 200
+    assert step('accounts').status_code == 409
+    clock += 2
+    assert step('accounts').status_code == 200
+    assert step('complete').status_code == 409
+    clock += 3
+    new = step('complete').json()['job']
+    assert new['id'] != job['id'] and new['phase'] == 'queued'
+    assert new['lobby_id'] is None and new['user_ids'] is None
+    assert new['participants'] == job['participants']
+    assert step('complete').status_code == 404
+
+
+def test_emergency_restart_never_resets_started_matches(client):
+    create(client)
+    headers = pair(client)
+    job = playing(client, headers, poll(client, headers))
+    assert client.post(f"/api/integration/jobs/{job['id']}/restart").status_code == 409
+    assert poll(client, headers)['autodarts_match_id'] == 'confirmed-match'
+
+
+def test_emergency_restart_userscript_runtime():
+    subprocess.run(['node','tests/board-restart.cjs'],cwd=Path(__file__).resolve().parents[1],check=True,capture_output=True,text=True)
+
+
 def test_board_identity_without_application_passwords(client,monkeypatch):
     monkeypatch.delenv('TOURNAMENT_ADMIN_KEY',raising=False)
     assert client.post('/api/integration/boards/Rot/pair').status_code==404

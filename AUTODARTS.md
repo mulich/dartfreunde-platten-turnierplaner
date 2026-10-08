@@ -1,12 +1,42 @@
 # Autodarts: Spieleraccounts und lokale Gäste
 
+## Notfall: Lobby neu starten (2.4.0)
+
+Im Autodarts-Reiter bei einer bestätigten, noch nicht gestarteten Lobby
+**Notfall: Lobby neu starten** wählen und die konkrete Begegnung bestätigen.
+Der Board-PC löscht diese Lobby und bestätigt, dass sie nicht mehr existiert.
+Nach zwei Sekunden öffnet die Accountzentrale die Autodarts-Startseite bei den
+beiden betroffenen Accountspielern. Nach Bestätigung und weiteren drei Sekunden
+erstellt das Script eine neue Lobby und lädt erneut ein. Lokale Gäste benötigen
+keine Portal-Sitzung und werden in der neuen Lobby wieder angelegt.
+
+Beide Container und das passende Board-Script auf Version 2.4.0 aktualisieren.
+Die Accountzentrale einmal im selben Browser des Board-PCs anmelden:
+Tampermonkey-Menü **Turnier-Board: Accountzentrale anmelden**. Der Zugriff läuft
+über den vorhandenen Schutz der Website; es gibt kein zusätzliches Script-Passwort.
+Für lokale Tests kann im Menü **Accountzentrale-Adresse** die Adresse
+`http://192.168.178.137:18080` eingestellt werden.
+
+Betroffene Accounts müssen in der Accountzentrale aktiv angemeldet sein und
+Einladungen automatisch annehmen. Die Zuordnung erfolgt über beobachtete echte
+Autodarts-Account-IDs, unabhängig vom Anzeigenamen der Portal-Sitzung. Login-Tokens
+werden dafür nicht gespeichert oder zwischen den Anwendungen übertragen.
+Fehlt die Zuordnung, die Spieler-Sitzung im Portal neu laden und anmelden.
+Sitzungen in einem anderen laufenden Spiel oder einer anderen Lobby werden nicht
+zurückgesetzt. Der Neustart pausiert dann mit einer konkreten Fehlermeldung.
+
+Die Automatik muss aktiv sein; das Board-Script muss laufen. Unklare Lobby-Erstellung,
+bereits gestartete Matches und gespeicherte Ergebnisse werden nicht mit diesem
+Button zurückgesetzt. Wiederholte Anfragen derselben Neustart-ID setzen eine bereits
+bestätigte Sitzung nicht erneut zurück, auch nach einem Portal-Container-Neustart.
+
 Turnierplaner: https://turnier.mulich.de/ · Accounts und Downloads:
 https://dartportal.mulich.de/
 
 ## Update
 
 Beide Container auf die neue Version aktualisieren und auf jedem Board-PC das
-passende Scheiben-Script **2.3.0** installieren bzw. aktualisieren:
+passende Scheiben-Script **2.4.0** installieren bzw. aktualisieren:
 
 - Blau: https://dartportal.mulich.de/static/turnier-blau.user.js
 - Rot: https://dartportal.mulich.de/static/turnier-rot.user.js

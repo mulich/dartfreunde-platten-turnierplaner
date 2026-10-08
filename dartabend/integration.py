@@ -56,7 +56,7 @@ class Poll(BaseModel):
 
 class JobUpdate(BaseModel):
     instance: str = Field(min_length=16, max_length=80)
-    phase: Literal['creating', 'lobby', 'starting', 'playing']
+    phase: Literal['creating', 'lobby', 'starting', 'playing', 'restarting']
     lobby_id: str | None = Field(default=None, max_length=80)
     autodarts_match_id: str | None = Field(default=None, max_length=80)
     user_ids: list[str] | None = Field(default=None, min_length=2, max_length=2)
@@ -69,6 +69,12 @@ class Result(BaseModel):
     user_ids: list[str] = Field(min_length=2, max_length=2)
     score1: StrictInt = Field(ge=0, le=50)
     score2: StrictInt = Field(ge=0, le=50)
+
+
+class RestartProgress(BaseModel):
+    instance: str = Field(min_length=16, max_length=80)
+    restart_id: str
+    step: Literal['deleted', 'accounts', 'complete']
 
 
 def initialize(db):
@@ -86,6 +92,10 @@ def initialize(db):
     ''')
     if 'participants' not in {r['name'] for r in db.execute('PRAGMA table_info(bridge_jobs)')}:
         db.execute("ALTER TABLE bridge_jobs ADD COLUMN participants TEXT")
+    columns = {r['name'] for r in db.execute('PRAGMA table_info(bridge_jobs)')}
+    for name, definition in [('restart_id', 'TEXT'), ('restart_step', 'TEXT'), ('restart_after', 'REAL')]:
+        if name not in columns:
+            db.execute(f'ALTER TABLE bridge_jobs ADD COLUMN {name} {definition}')
     for name, ident in BOARDS.items():
         db.execute('INSERT OR IGNORE INTO board_bridges(name,board_id) VALUES(?,?)', (name, ident))
 
@@ -109,7 +119,12 @@ def install(app, database, get_tournament, detail):
     def job_payload(db, job):
         match = dict(db.execute('SELECT * FROM matches WHERE id=?', (job['match_id'],)).fetchone())
         t = get_tournament(db, match['tournament_id'])
+        users = json.loads(job['user_ids']) if job['user_ids'] else []
+        completed = [r['autodarts_match_id'] for r in db.execute("SELECT autodarts_match_id,user_ids FROM bridge_jobs WHERE phase='done' AND autodarts_match_id IS NOT NULL ORDER BY match_id DESC LIMIT 100")
+                     if set(users) & set(json.loads(r['user_ids'] or '[]'))][:64]
         return {**job, 'user_ids': json.loads(job['user_ids']) if job['user_ids'] else None,
+                'restart_ready': not job.get('restart_after') or time.time() >= job['restart_after'],
+                'completed_match_ids': completed,
                 'participants': json.loads(job['participants']) if job['participants'] else [{'name':match['player1'],'account_name':match['player1']},{'name':match['player2'],'account_name':match['player2']}],
                 'match': match, 'board_id': BOARDS[job['board']], 'tournament_name': t['name'],
                 'paused': not t['autodarts_enabled'] or bool(t['archived_at']),
@@ -122,7 +137,7 @@ def install(app, database, get_tournament, detail):
             for b in boards:
                 b['online'] = bool(b['last_seen'] and time.time() - b['last_seen'] < 25)
 
-            jobs = [dict(r) for r in db.execute('''SELECT j.id,j.board,j.phase,j.error,j.lobby_id,j.autodarts_match_id,
+            jobs = [dict(r) for r in db.execute('''SELECT j.id,j.board,j.phase,j.error,j.lobby_id,j.autodarts_match_id,j.restart_step,
                  m.tournament_id,m.number FROM bridge_jobs j JOIN matches m ON m.id=j.match_id WHERE j.phase!='done' ''')]
             return {'boards': boards, 'jobs': jobs}
 
@@ -167,6 +182,54 @@ def install(app, database, get_tournament, detail):
                 raise HTTPException(409, 'Ein gespeichertes Ergebnis wird nicht zurückgesetzt.')
             db.execute('DELETE FROM bridge_jobs WHERE id=?', (job_id,))
             return {'reset': job_id}
+
+    @app.post('/api/integration/jobs/{job_id}/restart')
+    def restart(job_id: str):
+        with database() as db:
+            db.execute('BEGIN IMMEDIATE')
+            job = db.execute('SELECT * FROM bridge_jobs WHERE id=?', (job_id,)).fetchone()
+            if not job:
+                raise HTTPException(404, 'Auftrag nicht gefunden.')
+            if job['phase'] == 'restarting':
+                return {'restarting': job_id}
+            match = db.execute('SELECT * FROM matches WHERE id=?', (job['match_id'],)).fetchone()
+            t = get_tournament(db, match['tournament_id'])
+            if t['archived_at'] or not t['autodarts_enabled']:
+                raise HTTPException(409, 'Turnier-Automatik zuerst aktivieren.')
+            if job['phase'] != 'lobby' or not job['lobby_id'] or match['score1'] is not None:
+                raise HTTPException(409, 'Nur eine bestätigte, noch nicht gestartete Lobby kann neu gestartet werden.')
+            db.execute("UPDATE bridge_jobs SET phase='restarting',restart_id=?,restart_step='delete',restart_after=0,error='' WHERE id=?", (str(uuid4()), job_id))
+            return {'restarting': job_id}
+
+    @app.post('/api/bridge/jobs/{job_id}/restart')
+    def restart_progress(job_id: str, body: RestartProgress, x_board_id: str | None = Header(default=None)):
+        with database() as db:
+            db.execute('BEGIN IMMEDIATE')
+            board = authenticate(db, x_board_id)
+            job = owned_job(db, board, job_id, body.instance)
+            if job['phase'] != 'restarting' or job['restart_id'] != body.restart_id:
+                raise HTTPException(409, 'Neustart-Auftrag nicht mehr aktuell.')
+            match = db.execute('SELECT * FROM matches WHERE id=?', (job['match_id'],)).fetchone()
+            t = get_tournament(db, match['tournament_id'])
+            if t['archived_at'] or not t['autodarts_enabled'] or match['score1'] is not None:
+                raise HTTPException(409, 'Neustart pausiert oder Begegnung bereits abgeschlossen.')
+            if body.step == 'deleted' and job['restart_step'] == 'delete':
+                db.execute("UPDATE bridge_jobs SET restart_step='accounts',restart_after=? WHERE id=?", (time.time()+2, job_id))
+            elif body.step == 'accounts' and job['restart_step'] == 'accounts':
+                if time.time() < job['restart_after']:
+                    raise HTTPException(409, 'Kurze Wartezeit nach Lobby-Löschung noch nicht abgelaufen.')
+                db.execute("UPDATE bridge_jobs SET restart_step='wait',restart_after=? WHERE id=?", (time.time()+3, job_id))
+            elif body.step == 'complete' and job['restart_step'] == 'wait':
+                if time.time() < job['restart_after']:
+                    raise HTTPException(409, 'Accountzentrale wird noch vorbereitet.')
+                ident = str(uuid4())
+                db.execute('DELETE FROM bridge_jobs WHERE id=?', (job_id,))
+                db.execute('INSERT INTO bridge_jobs(id,match_id,board,owner,lease_until,revision,participants) VALUES(?,?,?,?,?,?,?)',
+                           (ident, job['match_id'], job['board'], body.instance, time.time()+75, job['revision'], job['participants']))
+                return {'job': job_payload(db, dict(db.execute('SELECT * FROM bridge_jobs WHERE id=?', (ident,)).fetchone()))}
+            elif not (body.step == 'deleted' and job['restart_step'] in ('accounts','wait') or body.step == 'accounts' and job['restart_step'] == 'wait'):
+                raise HTTPException(409, 'Ungültiger Neustart-Schritt.')
+            return {'job': job_payload(db, dict(db.execute('SELECT * FROM bridge_jobs WHERE id=?', (job_id,)).fetchone()))}
 
     @app.post('/api/bridge/poll')
     def poll(body: Poll, x_board_id: str | None = Header(default=None)):
