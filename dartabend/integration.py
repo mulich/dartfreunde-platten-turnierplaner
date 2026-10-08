@@ -38,7 +38,7 @@ class GameSettings(BaseModel):
         return self.length // 2 + 1 if self.length_mode == 'best_of' else self.length
 
     def lobby(self):
-        return {'variant': 'X01', 'isPrivate': True, 'bullOffMode': 'Off', 'legs': self.target,
+        return {'variant': 'X01', 'isPrivate': True, 'hasReferee': False, 'bullOffMode': 'Off', 'legs': self.target,
                 'settings': {'baseScore': self.base_score, 'inMode': self.in_mode,
                              'outMode': self.out_mode, 'bullMode': self.bull_mode,
                              'maxRounds': self.max_rounds}}

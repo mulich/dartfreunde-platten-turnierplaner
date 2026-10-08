@@ -5,17 +5,36 @@ https://dartportal.mulich.de/
 
 ## Update
 
-Beide Container auf die neue Version aktualisieren und auf jedem PC das neue
-Scheiben-Script **2.2.0** installieren bzw. in Tampermonkey aktualisieren:
+Beide Container auf die neue Version aktualisieren und auf jedem Board-PC das
+passende Scheiben-Script **2.3.0** installieren bzw. aktualisieren:
 
-https://dartportal.mulich.de/static/turnier-board.user.js
+- Blau: https://dartportal.mulich.de/static/turnier-blau.user.js
+- Rot: https://dartportal.mulich.de/static/turnier-rot.user.js
+- Schwarz: https://dartportal.mulich.de/static/turnier-schwarz.user.js
 
-Das gleiche Script auf allen drei PCs installieren; alte Turnier-Board-Scripts
-vorher deaktivieren. Es liest den angemeldeten Autodarts-Account: `blau`, `rot`
-und `schwarz` werden automatisch ihren festen Board-IDs zugeordnet
-(Groß-/Kleinschreibung wird ignoriert). Andere Accounts bleiben inaktiv.
-Nach einem Accountwechsel die Autodarts-Seite neu laden. Die bisherigen
-Download-URLs bleiben für Updates erhalten und erkennen ebenfalls den Account.
+Nur das jeweilige Script aktivieren; das bisherige automatische Script deaktivieren.
+Die Board-ID ist fest hinterlegt und wird nicht mehr aus dem Accountnamen ermittelt.
+Der korrekte Board-Account muss weiterhin in Autodarts angemeldet sein. Das Script
+beobachtet erneuerte Login-Tokens aus den Autodarts-Login-Antworten; Tokens werden
+weder gespeichert noch an den Turnierplaner gesendet.
+
+Vor dem Start werden Scheibe **und Steuerungsrechte** für beide Spieler geprüft.
+Auch bei bereits passender Board-ID wird der Host gegebenenfalls erneut zugewiesen.
+Der Referee wird ausdrücklich ausgeschaltet, damit manuelle Dartkorrekturen möglich
+bleiben. Ohne bestätigte Steuerungsrechte wird kein Match gestartet. Bei bestehenden
+Spielen die Steuerungsrechte in Autodarts prüfen; laufende Spiele werden nicht verändert.
+
+Wenn der Live-Match-Abruf nach dem letzten Leg HTTP 404 meldet, prüft das Script
+weiter die gespeicherte Statistik genau dieses Matches. Nur passende Teilnehmer
+und die exakt erreichte Sieg-Legzahl erlauben die Übernahme; ein 404 allein ist
+kein Endergebnis. Fehlende oder unvollständige Statistik wird erneut geprüft,
+ohne ein Ersatzmatch anzulegen. Bereits übernommene Matches dürfen auch bei
+zwischenzeitlich verschwundenem Live-Status die Scheibe freigeben.
+
+Beim Spielstart versucht das Script echtes Browser-Vollbild. Blockiert der Browser
+es wegen fehlender Nutzerinteraktion, auf **⛶** im Script-Fenster klicken oder **F11**
+drücken. Seitenwechsel können Browser-Vollbild beenden; F11 bleibt dafür die einfachste
+Option. Diese Einschränkung lässt sich durch ein Tampermonkey-Script nicht umgehen.
 
 Jeweils im Compose-Verzeichnis:
 
@@ -68,7 +87,7 @@ ein bereits beanspruchter Board-Auftrag speichert seine Teilnehmerzuordnung fest
 
 ## Board-PCs einrichten
 
-1. Tampermonkey und das gemeinsame Board-Script installieren.
+1. Tampermonkey und das zur Scheibe passende Board-Script installieren.
 2. Auf dem PC bei https://play.autodarts.com/ mit dem zugehörigen Board-Account
    anmelden und die Seite neu laden. Der Turnierplaner-Login muss im selben
    Browserprofil erfolgt sein. Es gibt keine zusätzliche Schlüsselkopplung.

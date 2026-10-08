@@ -129,7 +129,7 @@ def test_userscript_adapters_and_generated_copies():
     script=root/'dartabend/static/turnier-blau.user.js'
     code=r'''
     const assert=require('node:assert/strict');
-    const {resolvePlayers,finalResult,correctLobby}=require(process.argv[1]);
+    const {resolvePlayers,finalResult,correctLobby,completedArchiveResult}=require(process.argv[1]);
     const friends=[{requestStatus:'Accepted',user:{id:'alice',name:'Alice'}},{requestStatus:'Accepted',user:{id:'bob',name:'Bob'}}];
     assert.deepEqual(resolvePlayers(['ALICE','Bob'],friends,{id:'host',name:'Board'}).map(p=>p.id),['alice','bob']);
     assert.throws(()=>resolvePlayers(['Missing'],friends,{}));
@@ -139,10 +139,18 @@ def test_userscript_adapters_and_generated_copies():
     const stats={players:[{userId:'bob',name:'Bob'},{userId:'alice',name:'Alice'}],matchStats:[{legsWon:1},{legsWon:2}]};
     assert.deepEqual(finalResult({finished:true},stats,job),{score1:2,score2:1,user_ids:['alice','bob'],autodarts_match_id:'match'});
     assert.equal(finalResult({finished:false},stats,job),null);
+    assert.deepEqual(completedArchiveResult(stats,job),{score1:2,score2:1,user_ids:['alice','bob'],autodarts_match_id:'match'});
+    assert.equal(completedArchiveResult({...stats,id:'different-match'},job),null);
+    assert.equal(completedArchiveResult({...stats,matchStats:[{legsWon:0},{legsWon:1}]},job),null);
+    assert.equal(completedArchiveResult({...stats,players:[{userId:'wrong'},{userId:'alice'}]},job),null);
+    assert.equal(completedArchiveResult(null,job),null);
     assert.equal(finalResult({finished:true},{...stats,matchStats:[{legsWon:1},{legsWon:1}]},job),null);
     assert.equal(finalResult({finished:true},{...stats,players:[{userId:'wrong'},{userId:'alice'}]},job),null);
     const lobby={...payload,players:[{userId:'alice',boardId:'faa2cd5f-5d19-4e68-9749-1b7b95c753d4'},{userId:'bob',boardId:'faa2cd5f-5d19-4e68-9749-1b7b95c753d4'}]};
     assert.equal(correctLobby(lobby,job,'faa2cd5f-5d19-4e68-9749-1b7b95c753d4'),true);
+    assert.equal(correctLobby({...lobby,hasReferee:true},job,'faa2cd5f-5d19-4e68-9749-1b7b95c753d4'),false);
+    assert.equal(correctLobby(lobby,job,'faa2cd5f-5d19-4e68-9749-1b7b95c753d4','host'),false);
+    assert.equal(correctLobby({...lobby,players:lobby.players.map(p=>({...p,hostId:'host'}))},job,'faa2cd5f-5d19-4e68-9749-1b7b95c753d4','host'),true);
     assert.equal(correctLobby({...lobby,players:[...lobby.players].reverse()},job,'faa2cd5f-5d19-4e68-9749-1b7b95c753d4'),false);
     assert.equal(correctLobby({...lobby,legs:3},job,'faa2cd5f-5d19-4e68-9749-1b7b95c753d4'),false);
     assert.equal(correctLobby({...lobby,players:[{...lobby.players[0],isPending:true},lobby.players[1]]},job,'faa2cd5f-5d19-4e68-9749-1b7b95c753d4'),false);
@@ -151,7 +159,8 @@ def test_userscript_adapters_and_generated_copies():
     template=(root/'scripts/board-bridge.template.js').read_text()
     boards=json.dumps([dict(name=name,account=name.lower(),id=ident) for name,ident in BOARDS.items()])
     for slug,label in [('board','Automatisch'), *[(name.lower(),name) for name in BOARDS]]:
-        expected=template.replace('__BOARDS__',boards).replace('__BOARD_NAME__',label).replace('__BOARD_SLUG__',slug)
+        fixed=json.dumps(dict(name=label,account=slug,id=BOARDS[label])) if label in BOARDS else 'null'
+        expected=template.replace('__FIXED_BOARD__',fixed).replace('__BOARDS__',boards).replace('__BOARD_NAME__',label).replace('__BOARD_SLUG__',slug)
         assert (root/f'dartabend/static/turnier-{slug}.user.js').read_text()==expected
 
 
@@ -225,3 +234,8 @@ def test_lobby_null_list_is_empty_but_invalid_responses_are_rejected():
 def test_board_account_detection_before_automation():
     root=Path(__file__).parents[1]
     subprocess.run(['node','tests/board-account.cjs'],cwd=root,check=True,capture_output=True,text=True)
+
+
+def test_fixed_board_token_renewal_and_stale_unauthorized_response():
+    root=Path(__file__).parents[1]
+    subprocess.run(['node','tests/board-session.cjs'],cwd=root,check=True,capture_output=True,text=True)

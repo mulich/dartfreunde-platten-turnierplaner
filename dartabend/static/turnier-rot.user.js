@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Dartfreunde Platten – Turnier-Board Rot
 // @namespace    dartfreunde-platten-turnierplaner
-// @version      2.2.0
-// @description  Automatische Scheibenerkennung für rot, blau und schwarz; Lobbys und Ergebnisübernahme.
+// @version      2.3.0
+// @description  Feste Scheibenzuordnung, Steuerungsrechte, Vollbild und Ergebnisübernahme.
 // @match        https://play.autodarts.com/*
 // @run-at       document-start
 // @noframes
@@ -20,7 +20,8 @@
 (() => {
   'use strict';
   const BOARDS = [{"name": "Blau", "account": "blau", "id": "faa2cd5f-5d19-4e68-9749-1b7b95c753d4"}, {"name": "Rot", "account": "rot", "id": "ad381dc0-7e86-45a1-9fa8-61c8b18ec89b"}, {"name": "Schwarz", "account": "schwarz", "id": "6e390006-cdba-4ac5-b0bb-0e03eb880af6"}];
-  let BOARD = 'Account erkennen';
+  const FIXED_BOARD = {"name": "Rot", "account": "rot", "id": "ad381dc0-7e86-45a1-9fa8-61c8b18ec89b"};
+  let BOARD = FIXED_BOARD?.name || 'Account erkennen';
   let BOARD_ID = '';
   function boardForAccount(user) {
     if(!user?.id || typeof user.name!=='string')return null;
@@ -65,6 +66,13 @@
     if (scores.some(s => s === null) || Math.max(...scores) !== job.lobby_payload.legs || Math.min(...scores) >= job.lobby_payload.legs) return null;
     return {score1:scores[0], score2:scores[1], user_ids:job.user_ids, autodarts_match_id:job.autodarts_match_id};
   }
+  function completedArchiveResult(stats,job) {
+    if(stats?.id && stats.id!==job.autodarts_match_id)return null;
+    if(stats?.matchId && stats.matchId!==job.autodarts_match_id)return null;
+    // Only the persisted analytics endpoint for this exact match is used.
+    // The expected players and exact first-to target must independently confirm the outcome.
+    return finalResult({finished:true},stats,job);
+  }
   function normalizeLobby(lobby, id) {
     if(!lobby || lobby.id!==id || !Object.hasOwn(lobby,'players'))throw new Error('Lobby-Antwort unvollständig. Wartet auf aktuellen Autodarts-Status.');
     // An empty Autodarts lobby may serialize its player list as null.
@@ -76,12 +84,12 @@
     return lobby.players.length===2 && !lobby.players.some(p=>p.isPending || p.cpuPPR)
       && job.user_ids.every((id,index)=>lobby.players.filter(p=>matchesPlayer(p,index,job)).length===1);
   }
-  function correctLobby(lobby, job, boardId=BOARD_ID) {
-    if (!lobby?.isPrivate || !Array.isArray(lobby.players)) return false;
+  function correctLobby(lobby, job, boardId=BOARD_ID, account='') {
+    if (!lobby?.isPrivate || lobby.hasReferee===true || !Array.isArray(lobby.players)) return false;
     const expected=job.lobby_payload;
     if(lobby.variant!==expected.variant || lobby.legs!==expected.legs || lobby.bullOffMode!==expected.bullOffMode || Object.entries(expected.settings).some(([key,value])=>lobby.settings?.[key]!==value))return false;
     const players = lobby.players;
-    return players.length === 2 && players.every(p => !p.isPending && !p.cpuPPR && p.boardId === boardId)
+    return players.length === 2 && players.every(p => !p.isPending && !p.cpuPPR && p.boardId === boardId && (!account || p.userId===account || p.hostId===account))
       && job.user_ids.every((id, index) => matchesPlayer(players[index],index,job));
   }
   function parseResponse(response, url) {
@@ -106,14 +114,14 @@
   }
   // Pure adapters are exercised using fixtures; requiring this file never enables automation.
   if (typeof module === 'object' && module.exports) {
-    module.exports = {resolvePlayers, finalResult, correctLobby, parseResponse, matchesPlayer, localKey, normalizeLobby, boardForAccount};
+    module.exports = {resolvePlayers, finalResult, correctLobby, parseResponse, matchesPlayer, localKey, normalizeLobby, boardForAccount, completedArchiveResult};
     return;
   }
   // Legacy download links remain supported; only one agent may run in this page.
   if(unsafeWindow.__dfpTournamentAgent)return;
   unsafeWindow.__dfpTournamentAgent=true;
   const instance = crypto.randomUUID();
-  let storage = 'dfp-turnier-auto';
+  let storage = FIXED_BOARD ? `dfp-turnier-${FIXED_BOARD.id}` : 'dfp-turnier-auto';
   let accountSubject = '';
   let accountChanged = false;
   let config = {enabled:GM_getValue(storage, {enabled:true}).enabled!==false};
@@ -129,16 +137,31 @@
   function capture(value) {
     const match = typeof value === 'string' && value.match(/^Bearer\s+(.+)$/i);
     if (match) {
+      const sub=tokenSubject(match[1]);
+      if(!sub)return; // Ignore malformed or unrelated authorization headers.
       bearer = match[1];
-      if(accountSubject && tokenSubject(bearer)!==accountSubject)accountChanged=true;
+      if(accountSubject && sub!==accountSubject)accountChanged=true;
     }
   }
   // Observe only requests to the exact Autodarts API origin; never log or transmit credentials to the planner.
   const requests = new WeakMap();
+  const observed = new WeakSet();
+  const authUrl=url=>{try{const u=new URL(url,location.href);return u.origin===API && u.pathname.startsWith('/auth/v1/');}catch{return false;}};
+  function captureAuth(body) {if(typeof body?.access_token==='string')capture('Bearer '+body.access_token);}
   const xhr = unsafeWindow.XMLHttpRequest.prototype;
   const open = xhr.open, header = xhr.setRequestHeader;
-  xhr.open = function(method, url, ...rest) { requests.set(this, acceptedUrl(url)); return open.call(this, method, url, ...rest); };
-  xhr.setRequestHeader = function(name, value) { if(requests.get(this) && String(name).toLowerCase() === 'authorization')capture(value); return header.call(this, name, value); };
+  xhr.open = function(method, url, ...rest) {
+    requests.set(this,{api:acceptedUrl(url),auth:authUrl(url)});
+    if(!observed.has(this)) {
+      observed.add(this);
+      this.addEventListener?.('load',()=>{
+        if(!requests.get(this)?.auth || this.status<200 || this.status>=300)return;
+        try{captureAuth(typeof this.response==='object'?this.response:JSON.parse(this.responseText));}catch{}
+      });
+    }
+    return open.call(this, method, url, ...rest);
+  };
+  xhr.setRequestHeader = function(name, value) { if(requests.get(this)?.api && String(name).toLowerCase() === 'authorization')capture(value); return header.call(this, name, value); };
   const originalFetch = unsafeWindow.fetch;
   unsafeWindow.fetch = function(input, options) {
     const url = typeof input === 'string' ? input : input?.url;
@@ -146,7 +169,11 @@
       const headers = new Headers(options?.headers || input?.headers);
       capture(headers.get('authorization'));
     }
-    return originalFetch.call(this, input, options);
+    const pending=originalFetch.call(this, input, options);
+    if(authUrl(url))pending.then(async response=>{
+      if(response.ok)try{captureAuth(await response.clone().json());}catch{}
+    }).catch(()=>{});
+    return pending;
   };
   function show(text) { message = text; if(panel)panel.querySelector('[data-status]').textContent=text; }
   function request(url, method='GET', data, headers={}) {
@@ -159,9 +186,14 @@
     }));
   }
   const planner = (path, data) => request(SERVER+path, 'POST', {instance, ...data}, {'X-Board-ID':BOARD_ID});
-  const autodarts = (path, method='GET', data) => {
-    if(!bearer)throw new Error('Autodarts anmelden und Seite neu laden.');
-    return request(API+path, method, data, {Authorization:'Bearer '+bearer});
+  const autodarts = async (path, method='GET', data) => {
+    if(!bearer)throw new Error('Wartet auf erneuerte Autodarts-Anmeldung. Bei Bedarf Autodarts-Seite neu laden.');
+    const usedToken=bearer;
+    try{return await request(API+path,method,data,{Authorization:'Bearer '+usedToken});}
+    catch(error) {
+      if(error.status===401 && bearer===usedToken)bearer='';
+      throw error; // Never retry an ambiguous lobby write automatically.
+    }
   };
   async function identifyBoard() {
     if(accountChanged)throw new Error('Autodarts-Account gewechselt. Seite neu laden, um die Scheibe neu zu erkennen.');
@@ -169,10 +201,14 @@
     if(BOARD_ID)return true;
     const sub=tokenSubject(bearer);
     if(!sub)throw new Error('Account-Sitzung nicht erkannt.');
-    const user=await autodarts(`/us/v0/users/${encodeURIComponent(sub)}`);
+    let board=FIXED_BOARD;
+    if(!board) {
+      const user=await autodarts(`/us/v0/users/${encodeURIComponent(sub)}`);
+      if(user?.id!==sub)throw new Error('Account-Antwort stimmt nicht mit der Sitzung überein.');
+      board=boardForAccount(user);
+    }
     if(tokenSubject(bearer)!==sub)throw new Error('Account während Erkennung gewechselt. Seite neu laden.');
-    const board=boardForAccount(user);
-    if(user?.id!==sub || !board) {show('Kein Board-Account: als rot, blau oder schwarz anmelden.');return false;}
+    if(!board) {show('Kein Board-Account: als rot, blau oder schwarz anmelden.');return false;}
     accountSubject=sub;BOARD=board.name;BOARD_ID=board.id;
     storage=`dfp-turnier-${BOARD_ID}`;cacheKey=storage+'-pending';
     config={enabled:GM_getValue(storage,{enabled:true}).enabled!==false};
@@ -193,8 +229,13 @@
     // A completed match may still be displayed on the board. Never displace an unrelated game.
     const last=GM_getValue(storage+'-last-match', '');
     if(info.matchId!==last)return false;
-    const state=await autodarts(`/gs/v0/matches/${info.matchId}/state`);
-    return state?.finished===true;
+    try {
+      const state=await autodarts(`/gs/v0/matches/${info.matchId}/state`);
+      return state?.finished===true;
+    }catch(error) {
+      if(error.status===404)return true; // This exact match already had a validated result imported.
+      throw error;
+    }
   }
   async function prepare(job) {
     const planned=entries(job);
@@ -249,7 +290,7 @@
     lobby=await loadLobby(job);
     if(lobby.players.length!==2 || lobby.players.some(p=>p.isPending)) {show('Wartet auf die Annahme der Account-Einladungen');return job;}
     for(let index=0;index<lobby.players.length;index++) {
-      if(lobby.players[index].boardId!==BOARD_ID)await autodarts(`/gs/v0/lobbies/${job.lobby_id}/players/by-index/${index}/host`,'PUT',{boardId:BOARD_ID});
+      if(lobby.players[index].boardId!==BOARD_ID || (lobby.players[index].userId!==account && lobby.players[index].hostId!==account))await autodarts(`/gs/v0/lobbies/${job.lobby_id}/players/by-index/${index}/host`,'PUT',{boardId:BOARD_ID});
     }
     lobby=await loadLobby(job);
     if(!completePlayers(lobby,job)){show('Wartet auf vollständige Lobby-Spielerliste');return job;}
@@ -263,22 +304,42 @@
       }
     }
     if(!await boardReady()){show('Scheibe inzwischen belegt · wartet');return job;}
-    if(!correctLobby(lobby,job))throw new Error('Spieler, Scheibe oder Anwurf konnten nicht bestätigt werden.');
+    if(!correctLobby(lobby,job,BOARD_ID,account))throw new Error('Spieler, Scheibe oder Anwurf konnten nicht bestätigt werden.');
     job=await phase(job,'starting');
     const started=await autodarts(`/gs/v0/lobbies/${job.lobby_id}/start`,'POST');
     if(!started?.id)throw new Error('Matchstart nicht bestätigt. Manuell prüfen.');
     GM_setValue(cacheKey,{job:job.id,lobby_id:job.lobby_id,user_ids:job.user_ids,autodarts_match_id:started.id});
     job=await phase(job,'playing',{autodarts_match_id:started.id});
-    unsafeWindow.location.assign(`https://play.autodarts.com/matches/${started.id}`);
+    // Autodarts may already navigate on its match-start event. Avoid reloading that live view.
+    if(location.pathname!==`/matches/${started.id}`)unsafeWindow.location.assign(`https://play.autodarts.com/matches/${started.id}`);
+    await matchFullscreen(job);
     return job;
   }
+  let fullscreenMatch='';
+  async function enterFullscreen() {
+    if(document.fullscreenElement)return;
+    try {
+      if(!document.documentElement?.requestFullscreen)throw new Error('unsupported');
+      await document.documentElement.requestFullscreen();
+      fullscreenNotice('');
+    }catch{fullscreenNotice('Vollbild: auf ⛶ klicken oder F11 drücken.');}
+  }
+  function fullscreenNotice(text) {if(panel)panel.querySelector('[data-fullscreen-status]').textContent=text;}
+  async function matchFullscreen(job) {
+    if(fullscreenMatch===job.autodarts_match_id)return;
+    fullscreenMatch=job.autodarts_match_id;
+    await enterFullscreen();
+  }
   async function watch(job) {
-    const state=await autodarts(`/gs/v0/matches/${job.autodarts_match_id}/state`);
-    if(state?.finished!==true) {show('Match läuft · Ergebnisübernahme aktiv');return;}
+    await matchFullscreen(job);
+    let state,gone=false;
+    try{state=await autodarts(`/gs/v0/matches/${job.autodarts_match_id}/state`);}
+    catch(error){if(error.status!==404)throw error;gone=true;}
+    if(!gone && state?.finished!==true) {show('Match läuft · Ergebnisübernahme aktiv');return;}
     let stats;
     try{stats=await autodarts(`/as/v0/matches/${job.autodarts_match_id}/stats`);}catch(e){if(e.status===404){show('Wartet auf gespeicherte Match-Statistik');return;}throw e;}
-    const result=finalResult(state,stats,job);
-    if(!result){show('Kein eindeutiges Endergebnis. Bitte Spielstand prüfen.');return;}
+    const result=gone?completedArchiveResult(stats,job):finalResult(state,stats,job);
+    if(!result){show(gone?'Live-Match nicht mehr verfügbar · wartet auf bestätigtes gespeichertes Endergebnis':'Kein eindeutiges Endergebnis. Bitte Spielstand prüfen.');return;}
     await planner(`/api/bridge/jobs/${job.id}/result`,result);
     GM_setValue(storage+'-last-match',job.autodarts_match_id);
     GM_setValue(cacheKey,null);
@@ -313,7 +374,6 @@
       if(job.phase==='playing')await watch(job);
       currentJob=job;
     } catch(error) {
-      if(error.status===401 && error.service==='autodarts')bearer='';
       show(error.message);
       if(currentJob && !accountChanged)try{await planner(`/api/bridge/jobs/${currentJob.id}/state`,{phase:currentJob.phase,error:error.message.slice(0,240)});}catch{}
     } finally {ticking=false;}
@@ -347,7 +407,11 @@
     const setup=document.createElement('button');setup.textContent='Website anmelden';setup.onclick=configure;
     const pause=document.createElement('button');pause.textContent='Start / Pause';pause.onclick=toggle;
     for(const button of [setup,pause])button.style.cssText='background:#254b6a;color:#fff;border:1px solid #527795;border-radius:4px;padding:5px 8px;margin-right:6px;cursor:pointer';
-    details.append(status,setup,pause);panel.append(title,details);renderFold();document.body.append(panel);
+    const full=document.createElement('button');full.type='button';full.textContent='⛶';full.title='Vollbild aktivieren';full.setAttribute('aria-label','Vollbild aktivieren');full.onclick=enterFullscreen;
+    full.style.cssText='border:0;background:transparent;color:#cce6ff;padding:0 5px;cursor:pointer;font-size:18px';
+    const heading=document.createElement('div');heading.style.cssText='display:flex;align-items:center;gap:7px';heading.append(title,full);
+    const fullStatus=document.createElement('p');fullStatus.dataset.fullscreenStatus='';fullStatus.style.cssText='margin:6px 0;font-size:11px';
+    details.append(status,setup,pause,fullStatus);panel.append(heading,details);renderFold();document.body.append(panel);
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});else mount();
   setInterval(tick,4000);
