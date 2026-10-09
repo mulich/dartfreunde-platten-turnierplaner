@@ -1,6 +1,22 @@
 # Autodarts: Spieleraccounts und lokale Gäste
 
-## Notfall: Lobby neu starten (2.4.0)
+## Korrekturen 2.4.1
+
+Die Accountzentrale bestätigt die Annahme erst anhand des eigenen Accounts in der
+konkreten Lobby, mit passendem Gastgeber und `isPending=false`. Ein Seitenwechsel
+allein zählt nicht als Beitritt. Bleibt die Annahme ausstehend, erscheint ein
+konkreter Hinweis; spätere Bestätigungen werden weiter beobachtet. Wiederholte
+Klicks sind nur für die gleiche, noch sichtbare native Einladung zulässig, mit
+30 Sekunden Abstand und maximal drei Versuchen. Fremde Lobbys oder Matches zählen
+nicht als erfolgreiche Annahme. Die Account-ID stammt aus der aktiven Anmeldung;
+bei fehlender Erkennung die Spieler-Sitzung im Portal neu laden.
+
+Ein leerer oder fremder lokaler Board-Zwischenspeicher wird aus den bestätigten
+Teilnehmern der zugeordneten Lobby rekonstruiert. Fehlt dabei ein Teilnehmer,
+pausiert das Script mit einem Hinweis auf den Notfall-Neustart, statt eine
+möglicherweise bereits gesendete Einladung oder einen lokalen Gast doppelt anzulegen.
+
+## Notfall: Lobby neu starten (2.4.1)
 
 Im Autodarts-Reiter bei einer bestätigten, noch nicht gestarteten Lobby
 **Notfall: Lobby neu starten** wählen und die konkrete Begegnung bestätigen.
@@ -10,7 +26,7 @@ beiden betroffenen Accountspielern. Nach Bestätigung und weiteren drei Sekunden
 erstellt das Script eine neue Lobby und lädt erneut ein. Lokale Gäste benötigen
 keine Portal-Sitzung und werden in der neuen Lobby wieder angelegt.
 
-Beide Container und das passende Board-Script auf Version 2.4.0 aktualisieren.
+Beide Container und das passende Board-Script auf Version 2.4.1 aktualisieren.
 Die Accountzentrale einmal im selben Browser des Board-PCs anmelden:
 Tampermonkey-Menü **Turnier-Board: Accountzentrale anmelden**. Der Zugriff läuft
 über den vorhandenen Schutz der Website; es gibt kein zusätzliches Script-Passwort.
@@ -36,7 +52,7 @@ https://dartportal.mulich.de/
 ## Update
 
 Beide Container auf die neue Version aktualisieren und auf jedem Board-PC das
-passende Scheiben-Script **2.4.0** installieren bzw. aktualisieren:
+passende Scheiben-Script **2.4.1** installieren bzw. aktualisieren:
 
 - Blau: https://dartportal.mulich.de/static/turnier-blau.user.js
 - Rot: https://dartportal.mulich.de/static/turnier-rot.user.js

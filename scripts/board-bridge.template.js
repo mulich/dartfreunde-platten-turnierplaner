@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dartfreunde Platten – Turnier-Board __BOARD_NAME__
 // @namespace    dartfreunde-platten-turnierplaner
-// @version      2.4.0
+// @version      2.4.1
 // @description  Feste Scheibenzuordnung, Steuerungsrechte, Vollbild und Ergebnisübernahme.
 // @match        https://play.autodarts.com/*
 // @run-at       document-start
@@ -275,7 +275,21 @@
       lobby=await loadLobby(job);
     }
     if(lobby.players.some(p=>!job.user_ids.some((id,index)=>matchesPlayer(p,index,job))))throw new Error('Unerwarteter Teilnehmer in der Lobby. Manuell prüfen.');
-    const record=GM_getValue(cacheKey,{job:job.id});
+    let record=GM_getValue(cacheKey,null);
+    const valid=record && typeof record==='object' && !Array.isArray(record)
+      && record.job===job.id && record.lobby_id===job.lobby_id
+      && (record.invited===undefined || Array.isArray(record.invited))
+      && (record.locals===undefined || Array.isArray(record.locals));
+    if(!valid) {
+      // Recover from confirmed lobby participants only. A lost cache must never
+      // repeat an invitation/local-player write whose outcome is unknown.
+      if(!job.user_ids.every((id,index)=>lobby.players.some(p=>matchesPlayer(p,index,job))))
+        throw new Error('Lokaler Einladungsstatus fehlt. Lobby unvollständig: Notfall-Neustart im Turnierplaner verwenden.');
+      record={job:job.id,lobby_id:job.lobby_id,
+        invited:job.user_ids.filter((id,index)=>entries(job)[index].account_name),
+        locals:job.user_ids.filter((id,index)=>!entries(job)[index].account_name)};
+      GM_setValue(cacheKey,record);
+    }
     record.invited=record.invited || [];
     record.locals=record.locals || [];
     for(let index=0;index<job.user_ids.length;index++) {

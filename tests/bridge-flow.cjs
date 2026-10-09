@@ -2,7 +2,7 @@
 const vm=require('node:vm'), fs=require('node:fs'), assert=require('node:assert/strict');
 const source=fs.readFileSync('dartabend/static/turnier-blau.user.js','utf8');
 const board='faa2cd5f-5d19-4e68-9749-1b7b95c753d4';
-async function exercise(ambiguous=false,local=false,guests=false,emptyNull=false,dropBeforeMove=false,denied=false,gone=false) {
+async function exercise(ambiguous=false,local=false,guests=false,emptyNull=false,dropBeforeMove=false,denied=false,gone=false,lostCache=false) {
   let tick,lobby,ended=false,done=false,dropped=false;const calls=[], storage=new Map();
   let job={id:'job-1',phase:'queued',user_ids:null,match:{player1:'Alice',player2:'Bob'},lobby_payload:{variant:'X01',isPrivate:true,hasReferee:false,bullOffMode:'Off',legs:2,settings:{baseScore:501,inMode:'Straight',outMode:'Double',bullMode:'25/50',maxRounds:50}}};
   if(local)job.participants=[{name:'Alice',account_name:guests?null:'Alice'},{name:'Bob',account_name:null}];
@@ -57,8 +57,11 @@ async function exercise(ambiguous=false,local=false,guests=false,emptyNull=false
   if(ambiguous){assert.equal(job.phase,'creating');await tick();assert.equal(calls.filter(c=>c.url?.endsWith('/gs/v0/lobbies')&&c.method==='POST').length,1);assert(!calls.some(c=>c.url?.includes('/invitations/')));return;}
   if(denied){assert.equal(job.phase,'lobby');assert(!calls.some(c=>c.url?.endsWith('/start')));return;}
   assert.equal(job.phase,guests?'playing':'lobby');assert.equal(lobby.players.length,2);assert.equal(lobby.players.filter(p=>p.isPending).length,guests?0:local?1:2);
+  if(lostCache)storage.set(key+'-pending',lostCache===true?null:lostCache);
+  if(lostCache==='incomplete')lobby.players.pop();
   await tick(); // Invitations are pending; retries must not duplicate them.
   assert.equal(calls.filter(c=>c.url?.includes('/invitations/')).length,guests?0:local?1:2);
+  if(lostCache==='incomplete'){assert.equal(job.phase,'lobby');assert(job.error.includes('Notfall-Neustart'));assert(!calls.some(c=>c.url?.endsWith('/start')));return;}
   lobby.players.forEach(p=>p.isPending=false);
   await tick();if(dropBeforeMove){assert.equal(job.phase,'lobby');assert(!calls.some(c=>c.url?.endsWith('/start')));await tick();}assert.equal(job.phase,'playing');assert(!done);
   assert(calls.some(c=>c.navigate==='https://play.autodarts.com/matches/match-1'));
@@ -67,4 +70,4 @@ async function exercise(ambiguous=false,local=false,guests=false,emptyNull=false
   assert.equal(calls.filter(c=>c.url?.endsWith('/start')).length,1);
   assert.equal(calls.filter(c=>c.url?.endsWith('/gs/v0/lobbies')&&c.method==='POST').length,1);
 }
-(async()=>{await exercise();await exercise(true);await exercise(false,true);await exercise(false,true,true);await exercise(false,false,false,true);await exercise(false,true,true,true);await exercise(false,false,false,false,true);await exercise(false,true,true,false,false,true);await exercise(false,true,true,false,false,false,true);process.stdout.write('Board flow and ambiguous-write recovery passed\n');})().catch(e=>{console.error(e);process.exit(1);});
+(async()=>{await exercise();await exercise(true);await exercise(false,true);await exercise(false,true,true);await exercise(false,false,false,true);await exercise(false,true,true,true);await exercise(false,false,false,false,true);await exercise(false,true,true,false,false,true);await exercise(false,true,true,false,false,false,true);await exercise(false,false,false,false,false,false,false,true);await exercise(false,true,false,false,false,false,false,{job:'wrong-job',invited:['bob']});await exercise(false,false,false,false,false,false,false,'incomplete');await exercise(false,false,false,false,false,false,false,{job:'job-1',lobby_id:'lobby-1',invited:'broken'});process.stdout.write('Board flow and ambiguous-write recovery passed\n');})().catch(e=>{console.error(e);process.exit(1);});
