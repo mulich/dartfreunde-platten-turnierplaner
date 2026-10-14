@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dartfreunde Platten – Turnier-Board Schwarz
 // @namespace    dartfreunde-platten-turnierplaner
-// @version      2.4.1
+// @version      2.4.2
 // @description  Feste Scheibenzuordnung, Steuerungsrechte, Vollbild und Ergebnisübernahme.
 // @match        https://play.autodarts.com/*
 // @run-at       document-start
@@ -95,15 +95,17 @@
     return players.length === 2 && players.every(p => !p.isPending && !p.cpuPPR && p.boardId === boardId && (!account || p.userId===account || p.hostId===account))
       && job.user_ids.every((id, index) => matchesPlayer(players[index],index,job));
   }
-  function parseResponse(response, url) {
-    const service = new URL(url).origin === SERVER ? 'planner' : 'autodarts';
-    const label = service === 'planner' ? 'Turnierplaner' : 'Autodarts';
+  function parseResponse(response, url, accountPortal=PORTAL) {
+    const origin=new URL(url).origin;
+    const service = origin===SERVER ? 'planner' : origin===API ? 'autodarts' : origin===new URL(accountPortal).origin ? 'portal' : 'unknown';
+    const label = ({planner:'Turnierplaner',autodarts:'Autodarts',portal:'Accountzentrale',unknown:'Server'})[service];
     const fail = text => { const error=new Error(`${label}: HTTP ${response.status} – ${text}`); error.status=response.status; error.service=service; throw error; };
     const successful=response.status>=200 && response.status<300;
     const text=typeof response.responseText==='string'?response.responseText.trim():'';
     if(response.status===401 && /(?:^|\r?\n)www-authenticate:\s*Basic\b/i.test(response.responseHeaders || '')) {
-      fail(service==='planner'?'Website-Passwortschutz: turnier.mulich.de auf diesem PC im selben Browser öffnen und anmelden.':'Zusätzlicher Passwortschutz blockiert die API.');
+      fail(service==='planner'?'Website-Passwortschutz: turnier.mulich.de auf diesem PC im selben Browser öffnen und anmelden.':service==='portal'?'Website-Passwortschutz: Accountzentrale auf diesem PC im selben Browser öffnen und anmelden (Tampermonkey-Menü „Accountzentrale anmelden“).':service==='autodarts'?'Autodarts-Anmeldung abgelehnt. Autodarts auf diesem PC neu laden und gegebenenfalls erneut anmelden.':'Website-Passwortschutz blockiert diesen Server.');
     }
+    if(response.status===401 && service==='autodarts')fail('Autodarts-Anmeldung abgelaufen oder abgelehnt. Seite neu laden und gegebenenfalls erneut anmelden.');
     let body;
     if(response.response && typeof response.response==='object')body=response.response;
     else if(!text && successful)return null;
@@ -184,7 +186,7 @@
     return new Promise((resolve, reject) => GM_xmlhttpRequest({url, method, timeout, anonymous:![SERVER,portalUrl()].includes(new URL(url).origin),
       headers:{'Content-Type':'application/json', ...headers}, data:data===undefined?undefined:JSON.stringify(data),
       onload:r=>{
-        try{resolve(parseResponse(r,url));}catch(error){reject(error);}
+        try{resolve(parseResponse(r,url,portalUrl()));}catch(error){reject(error);}
       }, onerror:()=>reject(new Error('Verbindung fehlgeschlagen.')), ontimeout:()=>reject(new Error('Zeitüberschreitung.'))
     }));
   }

@@ -1,5 +1,36 @@
 # Autodarts: Spieleraccounts und lokale Gäste
 
+## Manuelle Ergebnisse und Fehlermeldungen (2.4.2)
+
+Ein laufender Notfall-Neustart zeigt weiterhin den Button **Neustart fortsetzen**.
+Nach Behebung eines Verbindungs- oder Anmeldefehlers kann er beliebig oft erneut
+betätigt werden; es gibt keine Begrenzung der Notfall-Versuche.
+Das Board-Script setzt am offenen Schritt fort; bereits bestätigte Schritte und
+Wartezeiten bleiben erhalten. Die Automatik muss aktiv sein. Wurde die neue Lobby
+bereits erstellt, kann dort wieder ein neuer Notfall-Neustart angefordert werden.
+Bei pausierter Automatik steht auch während eines Neustarts **Zuordnung zurücksetzen**
+zur Verfügung. Ein noch aktives Autodarts-Spiel vorher selbst beenden.
+
+Bei ausgeschalteter Turnier-Automatik lassen sich Ergebnisse im Spielplan direkt
+eintragen, korrigieren und zurücksetzen, auch für verknüpfte Begegnungen.
+Beim Speichern wird der offene Board-Auftrag dieser Begegnung aufgehoben.
+Verspätete Rückmeldungen dieses Auftrags überschreiben das manuelle Ergebnis nicht;
+auch während der Pause werden keine neuen automatischen Ergebnisse übernommen.
+Andere Begegnungen und deren Zuordnungen bleiben erhalten. Nach erneutem Aktivieren
+überspringt die Automatik manuell abgeschlossene Spiele. Zurückgesetzte Spiele
+können einen neuen Auftrag erhalten.
+
+Das manuelle Speichern beendet keine Lobby und kein Match bei Autodarts.
+Eine dort noch aktive Begegnung gegebenenfalls selbst beenden, bevor die Scheibe
+für die nächste Begegnung bereit ist.
+
+HTTP-401-Meldungen unterscheiden nun Turnierplaner, Accountzentrale und Autodarts.
+Beim Website-Passwortschutz die genannte Website im selben Browser des Board-PCs
+anmelden; für die Accountzentrale gibt es das Tampermonkey-Menü
+**Accountzentrale anmelden**. Meldet Autodarts eine abgelehnte Anmeldung, die
+Autodarts-Seite neu laden und gegebenenfalls erneut anmelden. Ohne die konkrete
+Antwort lässt sich die Ursache eines früheren 401 nicht eindeutig zuordnen.
+
 ## Korrekturen 2.4.1
 
 Die Accountzentrale bestätigt die Annahme erst anhand des eigenen Accounts in der
@@ -52,7 +83,7 @@ https://dartportal.mulich.de/
 ## Update
 
 Beide Container auf die neue Version aktualisieren und auf jedem Board-PC das
-passende Scheiben-Script **2.4.1** installieren bzw. aktualisieren:
+passende Scheiben-Script **2.4.2** installieren bzw. aktualisieren:
 
 - Blau: https://dartportal.mulich.de/static/turnier-blau.user.js
 - Rot: https://dartportal.mulich.de/static/turnier-rot.user.js

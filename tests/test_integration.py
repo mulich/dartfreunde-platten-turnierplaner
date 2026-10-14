@@ -75,6 +75,18 @@ def test_emergency_restart_requires_lobby_and_orders_delays(client, monkeypatch)
     assert step('accounts').status_code == 409
     assert step('deleted',restart_id='wrong').status_code == 409
     assert step('deleted').status_code == 200
+    pending = poll(client, headers)
+    state(client, headers, pending, 'restarting', error='Accountzentrale: HTTP 401')
+    for _ in range(20):
+        assert client.post(url).json()['resuming'] is True
+    resumed = poll(client, headers)
+    assert resumed['restart_id'] == operation
+    assert resumed['restart_step'] == 'accounts'
+    assert resumed['restart_after'] == pending['restart_after']
+    assert resumed['error'] == ''
+    client.post(f"/api/tournaments/{pending['match']['tournament_id']}/automation", json={'enabled':False})
+    assert client.post(url).status_code == 409
+    client.post(f"/api/tournaments/{pending['match']['tournament_id']}/automation", json={'enabled':True})
     assert step('accounts').status_code == 409
     clock += 2
     assert step('accounts').status_code == 200
@@ -97,6 +109,31 @@ def test_emergency_restart_never_resets_started_matches(client):
 
 def test_emergency_restart_userscript_runtime():
     subprocess.run(['node','tests/board-restart.cjs'],cwd=Path(__file__).resolve().parents[1],check=True,capture_output=True,text=True)
+
+
+def test_restart_retry_button_remains_available_and_requests_same_job():
+    script = Path(__file__).resolve().parents[1]/'dartabend/static/integration.js'
+    code = r'''
+    const assert=require('node:assert/strict'),vm=require('node:vm'),fs=require('node:fs');
+    const listeners=[],requests=[],messages=[],confirmations=[];
+    const main={innerHTML:'',addEventListener:(name,fn)=>listeners.push(fn)};
+    const ctx={main,state:{page:'integration'},esc:x=>x,boardColor:x=>x,
+      api:async(path,options)=>{requests.push([path,options]);return {boards:[],jobs:[{id:'job-123',phase:'restarting',board:'Rot',number:1,lobby_id:'lobby-123',error:'HTTP 401'}]};},
+      confirm:text=>{confirmations.push(text);return true;},toast:text=>messages.push(text)};
+    vm.createContext(ctx);vm.runInContext(fs.readFileSync(process.argv[1],'utf8'),ctx);
+    (async()=>{
+      await ctx.renderIntegration();
+      assert.match(main.innerHTML,/data-restart-lobby="job-123">Neustart fortsetzen/);
+      assert.match(main.innerHTML,/data-reset-job="job-123"/);
+      const button={textContent:'Neustart fortsetzen',dataset:{restartLobby:'job-123'},matches:q=>q==='[data-restart-lobby]'};
+      await listeners[0]({target:{closest:()=>button}});
+      assert.match(confirmations[0],/offenen Neustart-Schritt/);
+      assert.equal(requests[1][0],'/api/integration/jobs/job-123/restart');
+      assert.equal(requests[1][1].method,'POST');
+      assert.match(messages[0],/offenen Schritt/);
+    })().catch(e=>{console.error(e);process.exitCode=1;});
+    '''
+    subprocess.run(['node','-e',code,str(script)],check=True,capture_output=True,text=True)
 
 
 def test_board_identity_without_application_passwords(client,monkeypatch):
@@ -141,6 +178,56 @@ def test_result_validation_idempotency_and_manual_conflicts(client):
     assert client.put(f"/api/tournaments/{t['id']}/matches/{job['match_id']}",json={'score1':3,'score2':1,'revision':1}).status_code==409
     reply=client.post('/api/bridge/poll',headers=headers,json={'instance':INSTANCE,'ready':False}).json()
     assert reply['completed_match_id']=='confirmed-match'
+
+
+@pytest.mark.parametrize('phase', ['queued', 'creating', 'lobby', 'starting', 'playing', 'restarting'])
+def test_manual_score_retires_linked_job_when_paused(client, phase):
+    t = create(client, ['Alice', 'Bob'])
+    headers = pair(client)
+    job = poll(client, headers)
+    if phase != 'queued':
+        job = state(client, headers, job, 'creating')
+    if phase not in ('queued', 'creating'):
+        job = state(client, headers, job, 'lobby', lobby_id='confirmed-lobby', user_ids=['alice-id','bob-id'])
+    if phase in ('starting', 'playing'):
+        job = state(client, headers, job, 'starting')
+    if phase == 'playing':
+        job = state(client, headers, job, 'playing', autodarts_match_id='confirmed-match')
+    if phase == 'restarting':
+        assert client.post(f"/api/integration/jobs/{job['id']}/restart").status_code == 200
+    url = f"/api/tournaments/{t['id']}/matches/{job['match_id']}"
+    score = {'score1':2, 'score2':1, 'revision':0}
+    assert client.put(url, json=score).status_code == 409
+    client.post(f"/api/tournaments/{t['id']}/automation", json={'enabled':False})
+    # A stale edit must leave the linked job untouched.
+    assert client.put(url, json={**score, 'revision':99}).status_code == 409
+    assert poll(client, headers)['id'] == job['id']
+    saved = client.put(url, json=score)
+    assert saved.status_code == 200, saved.text
+    assert saved.json()['played'] == 1
+    assert saved.json()['matches'][0]['revision'] == 1
+    assert client.get('/api/integration').json()['jobs'] == []
+    client.post(f"/api/tournaments/{t['id']}/automation", json={'enabled':True})
+    assert poll(client, headers) is None
+    late = {'instance':INSTANCE, 'autodarts_match_id':'confirmed-match', 'user_ids':['alice-id','bob-id'], 'score1':0, 'score2':2}
+    assert client.post(f"/api/bridge/jobs/{job['id']}/result", headers=headers, json=late).status_code == 404
+    assert client.get(f"/api/tournaments/{t['id']}").json()['matches'][0]['score1'] == 2
+
+
+def test_paused_result_does_not_race_manual_input_and_clear_allows_new_job(client):
+    t = create(client, ['Alice','Bob'])
+    headers = pair(client)
+    job = playing(client, headers, poll(client, headers))
+    client.post(f"/api/tournaments/{t['id']}/automation", json={'enabled':False})
+    late = {'instance':INSTANCE, 'autodarts_match_id':'confirmed-match', 'user_ids':['alice-id','bob-id'], 'score1':2, 'score2':0}
+    assert client.post(f"/api/bridge/jobs/{job['id']}/result", headers=headers, json=late).status_code == 409
+    url = f"/api/tournaments/{t['id']}/matches/{job['match_id']}"
+    cleared = client.put(url, json={'score1':None, 'score2':None, 'revision':0})
+    assert cleared.status_code == 200 and cleared.json()['played'] == 0
+    client.post(f"/api/tournaments/{t['id']}/automation", json={'enabled':True})
+    new = poll(client, headers)
+    assert new['id'] != job['id'] and new['revision'] == 1
+    assert client.post(f"/api/bridge/jobs/{job['id']}/result", headers=headers, json=late).status_code == 404
 
 
 def test_pause_abort_and_reset_preserve_score_and_block_external_actions(client):
@@ -249,6 +336,9 @@ def test_userscript_proxy_errors_distinguish_basic_auth_and_board_key():
     const planner='https://turnier.mulich.de/api/bridge/poll';
     const basic={status:401,responseHeaders:'Content-Type: text/html\r\nWWW-Authenticate: Basic realm="Authorization required"',responseText:'<html><h1>401 Authorization Required</h1></html>'};
     assert.throws(()=>parseResponse(basic,planner),e=>e.status===401 && e.service==='planner' && e.message.includes('Website-Passwortschutz') && e.message.includes('anmelden'));
+    assert.throws(()=>parseResponse(basic,'https://dartportal.mulich.de/api/automation/lobby-recovery'),e=>e.service==='portal' && e.message.startsWith('Accountzentrale:') && e.message.includes('Accountzentrale anmelden') && !e.message.startsWith('Autodarts:'));
+    assert.throws(()=>parseResponse(basic,'http://192.168.178.137:18080/api/automation/lobby-recovery','http://192.168.178.137:18080'),e=>e.service==='portal' && e.message.startsWith('Accountzentrale:'));
+    assert.throws(()=>parseResponse(basic,'https://api.autodarts.com/gs/v0/lobbies'),e=>e.service==='autodarts' && e.message.includes('Anmeldung') && !e.message.includes('Passwortschutz'));
     assert.throws(()=>parseResponse({status:401,responseText:JSON.stringify({detail:'Board-Schlüssel ungültig.'})},planner),e=>e.service==='planner'&&e.message.includes('Board-Schlüssel ungültig.')&&!e.message.includes('Basic-Auth'));
     assert.throws(()=>parseResponse({...basic,status:200,responseHeaders:''},planner),/HTML-Seite statt JSON/);
     assert.throws(()=>parseResponse({status:502,responseText:'Bad Gateway'},planner),/HTTP 502/);

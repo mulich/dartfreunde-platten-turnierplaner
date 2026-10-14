@@ -243,10 +243,11 @@ def update_score(tournament_id: str, match_id: int, body: ScoreUpdate):
             raise HTTPException(404, 'Spiel nicht gefunden.')
         if t['autodarts_enabled']:
             raise HTTPException(409, 'Autodarts-Automatik vor manuellen Ergebniskorrekturen pausieren.')
-        if db.execute("SELECT id FROM bridge_jobs WHERE match_id=? AND phase!='done'", (match_id,)).fetchone():
-            raise HTTPException(409, 'Diese Begegnung ist mit Autodarts verknüpft. Automatik pausieren und Auftrag zuerst zurücksetzen.')
         if match['revision'] != body.revision:
             raise HTTPException(409, 'Dieses Ergebnis wurde inzwischen geändert. Ansicht neu laden und erneut prüfen.')
+        # Retire unfinished jobs atomically so late board callbacks cannot
+        # overwrite a manual score or reclaim the encounter after resuming.
+        db.execute("DELETE FROM bridge_jobs WHERE match_id=? AND phase!='done'", (match_id,))
         if body.score1 is None:
             db.execute("DELETE FROM bridge_jobs WHERE match_id=? AND phase='done'", (match_id,))
         db.execute('UPDATE matches SET score1=?,score2=?,revision=revision+1 WHERE id=?', (body.score1, body.score2, match_id))

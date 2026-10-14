@@ -64,7 +64,7 @@ function renderDetailContent() {
   }
   const matches=t.matches.filter(m=>(!state.board||m.board===state.board)&&(!state.pending||m.score1===null));
   const waves=[...new Set(matches.map(m=>m.wave))];
-  content.innerHTML=`<div class="match-toolbar"><div class="filters"><select id="board-filter" aria-label="Scheibe filtern"><option value="">Alle Scheiben</option>${['Rot','Blau','Schwarz'].slice(0,t.boards).map(b=>`<option ${state.board===b?'selected':''}>${b}</option>`).join('')}</select><select id="status-filter" aria-label="Spiele filtern"><option value="all">Alle Spiele</option><option value="pending" ${state.pending?'selected':''}>Nur offene Spiele</option></select></div><span class="help-text">${isArchived(t)?'Archivierter Spielplan':'Spieler 1 wirft an · Ergebnisse in Legs'}</span></div>${waves.map(w=>{
+  content.innerHTML=`<div class="match-toolbar"><div class="filters"><select id="board-filter" aria-label="Scheibe filtern"><option value="">Alle Scheiben</option>${['Rot','Blau','Schwarz'].slice(0,t.boards).map(b=>`<option ${state.board===b?'selected':''}>${b}</option>`).join('')}</select><select id="status-filter" aria-label="Spiele filtern"><option value="all">Alle Spiele</option><option value="pending" ${state.pending?'selected':''}>Nur offene Spiele</option></select></div><span class="help-text">${isArchived(t)?'Archivierter Spielplan':'Spieler 1 wirft an · Automatik aus: Ergebnisse manuell in Legs eintragen'}</span></div>${waves.map(w=>{
     const all=t.matches.filter(m=>m.wave===w);
     const round=all[0].round;
     const resting=t.players.filter(p=>!t.matches.some(m=>m.round===round&&(m.player1===p||m.player2===p)));

@@ -190,12 +190,15 @@ def install(app, database, get_tournament, detail):
             job = db.execute('SELECT * FROM bridge_jobs WHERE id=?', (job_id,)).fetchone()
             if not job:
                 raise HTTPException(404, 'Auftrag nicht gefunden.')
-            if job['phase'] == 'restarting':
-                return {'restarting': job_id}
             match = db.execute('SELECT * FROM matches WHERE id=?', (job['match_id'],)).fetchone()
             t = get_tournament(db, match['tournament_id'])
             if t['archived_at'] or not t['autodarts_enabled']:
                 raise HTTPException(409, 'Turnier-Automatik zuerst aktivieren.')
+            if job['phase'] == 'restarting' and match['score1'] is None:
+                # Retry the outstanding step under the same operation ID. Keep
+                # confirmed deletion, portal receipts and mandatory delays.
+                db.execute("UPDATE bridge_jobs SET error='' WHERE id=?", (job_id,))
+                return {'restarting': job_id, 'resuming': True}
             if job['phase'] != 'lobby' or not job['lobby_id'] or match['score1'] is not None:
                 raise HTTPException(409, 'Nur eine bestätigte, noch nicht gestartete Lobby kann neu gestartet werden.')
             db.execute("UPDATE bridge_jobs SET phase='restarting',restart_id=?,restart_step='delete',restart_after=0,error='' WHERE id=?", (str(uuid4()), job_id))
@@ -307,6 +310,8 @@ def install(app, database, get_tournament, detail):
                 raise HTTPException(409, 'Autodarts-Match oder Spieler stimmen nicht mit dem Auftrag überein.')
             if job['phase'] == 'done' and (match['score1'], match['score2']) == (body.score1, body.score2):
                 return {'saved': True}
+            if not t['autodarts_enabled']:
+                raise HTTPException(409, 'Turnier-Automatik ist pausiert. Ergebnis manuell eintragen oder Automatik fortsetzen.')
             if job['phase'] != 'playing' or t['archived_at'] or match['revision'] != job['revision'] or match['score1'] is not None:
                 raise HTTPException(409, 'Ergebnis bereits geändert oder Turnier beendet. Manuell prüfen.')
             target = GameSettings.model_validate(t['game_settings']).target
