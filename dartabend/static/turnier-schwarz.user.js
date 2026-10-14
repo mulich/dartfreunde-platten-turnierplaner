@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Dartfreunde Platten – Turnier-Board Schwarz
 // @namespace    dartfreunde-platten-turnierplaner
-// @version      2.4.2
+// @version      2.4.3
 // @description  Feste Scheibenzuordnung, Steuerungsrechte, Vollbild und Ergebnisübernahme.
 // @match        https://play.autodarts.com/*
 // @run-at       document-start
@@ -332,34 +332,67 @@
     job=await phase(job,'playing',{autodarts_match_id:started.id});
     // Autodarts may already navigate on its match-start event. Avoid reloading that live view.
     if(location.pathname!==`/matches/${started.id}`)unsafeWindow.location.assign(`https://play.autodarts.com/matches/${started.id}`);
-    await matchFullscreen(job);
     return job;
   }
   let fullscreenMatch='';
+  let fullscreenOwned=false;
+  let fullscreenAttempt=0;
+  let fullscreenDismissed='';
+  const onMatchPage=id=>!!id && [`/matches/${id}`,`/match/${id}`].includes(location.pathname);
   async function enterFullscreen() {
-    if(document.fullscreenElement)return;
+    if(document.fullscreenElement){
+      // Tools for Autodarts may already have entered document fullscreen.
+      // Adopt that match view too, so it leaves fullscreen when the match ends.
+      if(onMatchPage(currentJob?.autodarts_match_id) && document.fullscreenElement===document.documentElement)fullscreenOwned=true;
+      return;
+    }
     try {
       if(!document.documentElement?.requestFullscreen)throw new Error('unsupported');
-      await document.documentElement.requestFullscreen();
+      await document.documentElement.requestFullscreen({navigationUI:'hide'});
+      fullscreenOwned=true;
       fullscreenNotice('');
-    }catch{fullscreenNotice('Vollbild: auf ⛶ klicken oder F11 drücken.');}
+    }catch{fullscreenNotice('Automatisches Vollbild im Browser für play.autodarts.com erlauben. Alternativ einmal in die Spielansicht oder auf ⛶ klicken.');}
+  }
+  async function leaveMatchFullscreen(id=fullscreenMatch) {
+    fullscreenDismissed=id || fullscreenDismissed;
+    fullscreenMatch='';fullscreenAttempt=0;
+    if(fullscreenOwned && document.fullscreenElement) {
+      fullscreenOwned=false;
+      try{await document.exitFullscreen();}catch{fullscreenOwned=!!document.fullscreenElement;fullscreenNotice('Vollbild verlassen: Esc drücken.');return;}
+    }
+    fullscreenOwned=false;
+    fullscreenNotice('');
   }
   function fullscreenNotice(text) {if(panel)panel.querySelector('[data-fullscreen-status]').textContent=text;}
   async function matchFullscreen(job) {
-    if(fullscreenMatch===job.autodarts_match_id)return;
+    if(!onMatchPage(job.autodarts_match_id) || document.hidden || fullscreenDismissed===job.autodarts_match_id)return;
+    if(document.fullscreenElement===document.documentElement && document.fullscreenElement){
+      fullscreenMatch=job.autodarts_match_id;fullscreenOwned=true;return;
+    }
+    if(fullscreenMatch===job.autodarts_match_id && (document.fullscreenElement || Date.now()-fullscreenAttempt<15000))return;
     fullscreenMatch=job.autodarts_match_id;
+    fullscreenAttempt=Date.now();
     await enterFullscreen();
   }
+  // A real click supplies the user activation required by browsers without an
+  // automatic-fullscreen permission. Never simulate keystrokes or trusted clicks.
+  document.addEventListener('pointerdown',()=>{
+    if(config.enabled && currentJob?.phase==='playing' && !currentJob.paused && onMatchPage(currentJob.autodarts_match_id) && fullscreenDismissed!==currentJob.autodarts_match_id)enterFullscreen();
+  },{capture:true});
+  document.addEventListener('fullscreenchange',()=>{
+    if(fullscreenOwned && !document.fullscreenElement){fullscreenOwned=false;fullscreenDismissed=fullscreenMatch;}
+  });
   async function watch(job) {
-    await matchFullscreen(job);
     let state,gone=false;
     try{state=await autodarts(`/gs/v0/matches/${job.autodarts_match_id}/state`);}
     catch(error){if(error.status!==404)throw error;gone=true;}
-    if(!gone && state?.finished!==true) {show('Match läuft · Ergebnisübernahme aktiv');return;}
+    if(!gone && state?.finished!==true) {await matchFullscreen(job);show('Match läuft · Ergebnisübernahme aktiv');return;}
+    if(state?.finished===true)await leaveMatchFullscreen(job.autodarts_match_id);
     let stats;
     try{stats=await autodarts(`/as/v0/matches/${job.autodarts_match_id}/stats`);}catch(e){if(e.status===404){show('Wartet auf gespeicherte Match-Statistik');return;}throw e;}
     const result=gone?completedArchiveResult(stats,job):finalResult(state,stats,job);
     if(!result){show(gone?'Live-Match nicht mehr verfügbar · wartet auf bestätigtes gespeichertes Endergebnis':'Kein eindeutiges Endergebnis. Bitte Spielstand prüfen.');return;}
+    await leaveMatchFullscreen(job.autodarts_match_id);
     await planner(`/api/bridge/jobs/${job.id}/result`,result);
     GM_setValue(storage+'-last-match',job.autodarts_match_id);
     GM_setValue(cacheKey,null);
@@ -410,8 +443,15 @@
       if(reply.completed_match_id)GM_setValue(storage+'-last-match',reply.completed_match_id);
       if(!reply || typeof reply!=='object' || !Object.hasOwn(reply,'job'))throw new Error('Turnierplaner: Board-Antwort unvollständig. Container-Version und Proxy-Ziel prüfen.');
       currentJob=reply.job;
-      if(!currentJob){show(reply.message || (ready?'Wartet auf nächste Begegnung':bearer?'Scheibe belegt · bestehendes Spiel zuerst beenden':'Autodarts anmelden und Seite neu laden'));return;}
-      if(currentJob.paused){show('Turnier-Automatik pausiert oder beendet');return;}
+      if(!currentJob){if(!reply.message)await leaveMatchFullscreen();show(reply.message || (ready?'Wartet auf nächste Begegnung':bearer?'Scheibe belegt · bestehendes Spiel zuerst beenden':'Autodarts anmelden und Seite neu laden'));return;}
+      if(currentJob.paused){
+        if(fullscreenOwned && currentJob.phase==='playing') {
+          const state=await autodarts(`/gs/v0/matches/${currentJob.autodarts_match_id}/state`);
+          if(state?.finished===true)await leaveMatchFullscreen();
+        }
+        show('Turnier-Automatik pausiert oder beendet');return;
+      }
+      if(fullscreenMatch && !onMatchPage(fullscreenMatch))await leaveMatchFullscreen();
       let job=currentJob;
       if(job.phase==='restarting'){await restartLobby(job);return;}
       if(['queued','lobby'].includes(job.phase)&&!ready){show('Scheibe belegt oder Autodarts nicht bereit · wartet');return;}
@@ -469,7 +509,10 @@
     const setup=document.createElement('button');setup.textContent='Website anmelden';setup.onclick=configure;
     const pause=document.createElement('button');pause.textContent='Start / Pause';pause.onclick=toggle;
     for(const button of [setup,pause])button.style.cssText='background:#254b6a;color:#fff;border:1px solid #527795;border-radius:4px;padding:5px 8px;margin-right:6px;cursor:pointer';
-    const full=document.createElement('button');full.type='button';full.textContent='⛶';full.title='Vollbild aktivieren';full.setAttribute('aria-label','Vollbild aktivieren');full.onclick=enterFullscreen;
+    const full=document.createElement('button');full.type='button';full.textContent='⛶';full.title='Vollbild ein / aus';full.setAttribute('aria-label','Vollbild ein / aus');full.onclick=()=>{
+      if(document.fullscreenElement)leaveMatchFullscreen();
+      else{fullscreenDismissed='';enterFullscreen();}
+    };
     full.style.cssText='border:0;background:transparent;color:#cce6ff;padding:0 5px;cursor:pointer;font-size:18px';
     const heading=document.createElement('div');heading.style.cssText='display:flex;align-items:center;gap:7px';heading.append(title,full);
     const fullStatus=document.createElement('p');fullStatus.dataset.fullscreenStatus='';fullStatus.style.cssText='margin:6px 0;font-size:11px';

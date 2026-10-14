@@ -1,5 +1,40 @@
 # Autodarts: Spieleraccounts und lokale Gäste
 
+## Vollbild bei Spielbeginn und Spielende (2.4.3)
+
+Das Board-Script fordert echtes Browser-Vollbild erst in der passenden
+Autodarts-Spielansicht eines laufenden Matches an, auch nach einem Seitenwechsel
+oder Neuladen. Bei erkanntem Matchende wird es automatisch verlassen, bereits
+bevor die Statistik gespeichert bzw. das Ergebnis importiert ist. Bei einer
+404-Antwort wird erst das bestätigte archivierte Endergebnis abgewartet.
+Von Tools for Autodarts aktiviertes Dokument-Vollbild wird ebenfalls am Ende
+verlassen. F11-Vollbild ist ein separater Browsermodus und lässt sich so nicht steuern.
+Esc bleibt verfügbar; nach bewusstem Verlassen wird Vollbild in demselben Match
+nicht erneut erzwungen. Über ⛶ lässt es sich wieder einschalten.
+
+Die aktuelle Implementierung von [Tools for Autodarts](https://github.com/creazy231/tools-for-autodarts/blob/main/entrypoints/match.content/automatic-fullscreen.ts)
+verwendet ebenfalls `requestFullscreen()` und `exitFullscreen()`. Sie kann die
+Browserfreigabe nicht umgehen. Das Turnier-Script verwendet diese Browser-APIs
+mit eigener Steuerung für zugeordnete Turnierspiele.
+
+Funktioniert Vollbild auf dem PC bereits automatisch mit Tools for Autodarts,
+ist keine zusätzliche Windows-Datei erforderlich. Die folgende Freigabe ist
+optional, falls Chrome den automatischen Einstieg blockiert.
+
+Chrome kann automatisches Vollbild für normale Websites per Richtlinie
+`AutomaticFullscreenAllowedForUrls` erlauben. Die Freigabe auf den Board-PCs
+auf `https://play.autodarts.com` begrenzen. Die Datei
+[chrome-autodarts-vollbild.reg](dartabend/static/chrome-autodarts-vollbild.reg)
+setzt diese Richtlinie unter Windows für den aktuellen Benutzer (Listeneintrag
+`1001`). Datei herunterladen, am jeweiligen Board-PC importieren,
+Chrome neu starten und unter `chrome://policy` die Richtlinie prüfen.
+Die Datei [chrome-autodarts-vollbild-entfernen.reg](dartabend/static/chrome-autodarts-vollbild-entfernen.reg)
+entfernt nur diesen Eintrag. Andere vorhandene Richtlinien bleiben erhalten.
+Verhindert eine übergeordnete Firmenrichtlinie die Freigabe, muss sie dort
+angepasst werden. Ohne Freigabe zeigt das Script einen Hinweis; ein echter Klick
+in die aktive Spielansicht oder auf ⛶ startet dann das Vollbild.
+Siehe [Chrome-Richtlinie](https://chromeenterprise.google/policies/#AutomaticFullscreenAllowedForUrls).
+
 ## Manuelle Ergebnisse und Fehlermeldungen (2.4.2)
 
 Ein laufender Notfall-Neustart zeigt weiterhin den Button **Neustart fortsetzen**.
@@ -83,7 +118,7 @@ https://dartportal.mulich.de/
 ## Update
 
 Beide Container auf die neue Version aktualisieren und auf jedem Board-PC das
-passende Scheiben-Script **2.4.2** installieren bzw. aktualisieren:
+passende Scheiben-Script **2.4.3** installieren bzw. aktualisieren:
 
 - Blau: https://dartportal.mulich.de/static/turnier-blau.user.js
 - Rot: https://dartportal.mulich.de/static/turnier-rot.user.js

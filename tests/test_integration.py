@@ -111,6 +111,10 @@ def test_emergency_restart_userscript_runtime():
     subprocess.run(['node','tests/board-restart.cjs'],cwd=Path(__file__).resolve().parents[1],check=True,capture_output=True,text=True)
 
 
+def test_match_fullscreen_lifecycle_runtime():
+    subprocess.run(['node','tests/board-fullscreen.cjs'],cwd=Path(__file__).resolve().parents[1],check=True,capture_output=True,text=True)
+
+
 def test_restart_retry_button_remains_available_and_requests_same_job():
     script = Path(__file__).resolve().parents[1]/'dartabend/static/integration.js'
     code = r'''
