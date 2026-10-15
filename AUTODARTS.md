@@ -1,5 +1,27 @@
 # Autodarts: Spieleraccounts und lokale Gäste
 
+## Account-Sitzungen automatisch starten
+
+Beim Erstellen eines Turniers werden für Teilnehmer mit zugewiesenem Account
+die bestehenden Portal-Sitzungen einmalig angefordert. Der Planer meldet fehlende
+oder mehrdeutige Sitzungen; lokale Gäste werden übersprungen. Bestehende aktive
+Ansichten werden nicht neu geladen. Gespeicherte Anmeldungen werden verwendet,
+abgelaufene Logins müssen im Portal erneuert werden. Die Einladungsannahme wird
+für die im Portal freigegebenen Board-Accounts eingeschaltet.
+
+Die Sitzung im Portal muss nach dem Autodarts-Accountnamen benannt sein;
+alternativ wird ein eindeutig passender Turnier-Spielername verwendet.
+`DARTPORTAL_URL` im Turnier-Container auf die intern erreichbare Portal-Adresse
+setzen. Standard für dieses Netz: `http://192.168.178.137:18080`. Die öffentliche
+URL mit zusätzlichem Proxy-Passwortschutz ist hierfür ungeeignet. Bei einem
+Fehler bleibt das Turnier gespeichert; Sitzungen im Portal manuell öffnen.
+Mit leerem `DARTPORTAL_URL` lässt sich der automatische Aufruf deaktivieren.
+
+Im Portal pausiert **Alle pausieren** oben rechts sämtliche Sitzungen dauerhaft,
+auch über Container-Neustarts. Derselbe bereits bestätigte Turnier-Aufruf öffnet
+sie nicht erneut; ein neues Turnier oder manuelle Auswahl kann sie wieder starten.
+Beide Container aktualisieren. Die Board-Scripts bleiben unverändert.
+
 ## Vollbild bei Spielbeginn und Spielende (2.4.3)
 
 Das Board-Script fordert echtes Browser-Vollbild erst in der passenden

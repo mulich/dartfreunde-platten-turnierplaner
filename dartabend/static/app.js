@@ -196,7 +196,7 @@ document.querySelector('#create-form').onsubmit=async e=>{
   document.querySelector('#create-error').textContent='';
   try {
     const t=await api('/api/tournaments',{method:'POST',body:JSON.stringify({name:document.querySelector('#tournament-name').value,players:selectedPlayers,boards:Number(document.querySelector('[name=boards]:checked').value),game_settings:readGameSettings()})});
-    dialog.close();state.tab='matches';state.board='';state.pending=false;location.hash=`tournament/${t.id}`;toast('Turnier erstellt.');
+    dialog.close();state.tab='matches';state.board='';state.pending=false;location.hash=`tournament/${t.id}`;toast('Turnier erstellt. '+(t.portal_activation?.message || ''));
   } catch(error) {document.querySelector('#create-error').textContent=error.message;} finally {button.disabled=false;}
 };
 async function saveScore(form, clear=false) {

@@ -3,6 +3,8 @@ services:
   turnierplaner:
     image: ghcr.io/mulich/dartfreunde-platten-turnierplaner:latest
     restart: unless-stopped
+    environment:
+      DARTPORTAL_URL: "${DARTPORTAL_URL:-http://192.168.178.137:18080}"
     ports:
       - "${TOURNAMENT_PORT:-18081}:8000"
     volumes:

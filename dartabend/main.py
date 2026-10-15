@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, StrictInt, model_validator
 
-from . import player_profiles, statistics
+from . import player_profiles, statistics, portal
 from .scheduler import spielplan_erstellen
 from .history_import import import_history
 from .integration import GameSettings, initialize as init_integration, install as install_integration
@@ -222,7 +222,11 @@ def create_tournament(body: TournamentCreate):
         db.executemany('INSERT INTO matches(tournament_id,number,round,wave,board,player1,player2) VALUES(?,?,?,?,?,?,?)',
                        [(tournament_id, i, m['runde'], m['durchgang'], m['scheibe'], m['spieler1'], m['spieler2'])
                         for i, m in enumerate(plan, 1)])
-        return detail(db, tournament_id)
+        result = detail(db, tournament_id)
+        accounts = player_profiles.participants(db, body.players)
+    # Portal failure must not roll back the plan or create duplicate tournaments.
+    result['portal_activation'] = portal.activate(tournament_id, accounts)
+    return result
 
 
 @app.get('/api/tournaments/{tournament_id}')
