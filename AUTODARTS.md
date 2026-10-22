@@ -1,5 +1,15 @@
 # Autodarts: Spieleraccounts und lokale Gäste
 
+## Neue Turniere nach einem Abbruch
+
+Alte Board-Aufträge aus archivierten oder abgebrochenen Turnieren werden nicht
+mehr an die Scheiben zurückgegeben. Bei einem neuen aktiven Turnier werden auch
+Aufträge anderer pausierter Turniere übersprungen. Die alten Zuordnungen und
+Ergebnisse bleiben für die Prüfung erhalten; Autodarts-Lobbys werden dabei nicht
+gelöscht. Eine tatsächlich noch belegte Scheibe muss weiterhin in Autodarts
+freigegeben werden. Sind alle Turniere pausiert, bleibt der pausierte Auftrag
+eines offenen Turniers fortsetzbar.
+
 ## Account-Sitzungen automatisch starten
 
 Beim Erstellen eines Turniers werden für Teilnehmer mit zugewiesenem Account

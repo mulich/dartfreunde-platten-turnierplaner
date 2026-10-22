@@ -246,11 +246,39 @@ def test_pause_abort_and_reset_preserve_score_and_block_external_actions(client)
     client.post(f"/api/tournaments/{t['id']}/automation",headers=ADMIN,json={'enabled':True})
     job=playing(client,headers,poll(client,headers))
     assert client.post(f"/api/tournaments/{t['id']}/abort").status_code==200
-    assert poll(client,headers)['paused']
+    assert poll(client,headers) is None
     body={'instance':INSTANCE,'autodarts_match_id':'confirmed-match','user_ids':['alice-id','bob-id'],'score1':2,'score2':0}
     assert client.post(f"/api/bridge/jobs/{job['id']}/result",headers=headers,json=body).status_code==409
     assert client.delete(f"/api/tournaments/{t['id']}").status_code==200
     assert poll(client,headers) is None
+
+
+@pytest.mark.parametrize('retire', ['abort', 'pause'])
+def test_old_tournament_jobs_do_not_block_new_tournament(client, retire):
+    old = create(client)
+    headers = pair(client)
+    stale = state(client, headers, poll(client, headers), 'creating')
+    stale = state(client, headers, stale, 'lobby', lobby_id='old-lobby', user_ids=['alice-id','bob-id'])
+    if retire == 'abort':
+        client.post(f"/api/tournaments/{old['id']}/abort")
+        assert poll(client, headers) is None
+    else:
+        client.post(f"/api/tournaments/{old['id']}/automation",json={'enabled':False})
+        assert poll(client, headers)['paused']
+    new = create(client)
+    # Another instance must not be held by the old job's unexpired lease.
+    other_instance = 'new-board-instance-5678'
+    assert poll(client, headers, other_instance, ready=False) is None
+    fresh = poll(client, headers, other_instance)
+    assert fresh['id'] != stale['id']
+    assert fresh['match']['tournament_id'] == new['id']
+    assert fresh['phase'] == 'queued' and not fresh['paused']
+    with database() as db:
+        saved = dict(db.execute('SELECT * FROM bridge_jobs WHERE id=?',(stale['id'],)).fetchone())
+        assert saved['lobby_id'] == 'old-lobby' and saved['phase'] == 'lobby'
+        assert saved['owner'] == INSTANCE
+    # Retiring a tournament does not delete its physical Autodarts lobby.
+    assert client.get(f"/api/tournaments/{old['id']}").json()['played'] == 0
 
 
 def test_single_automated_tournament_and_game_settings(client):

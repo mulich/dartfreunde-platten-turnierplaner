@@ -241,8 +241,15 @@ def install(app, database, get_tournament, detail):
             board = authenticate(db, x_board_id)
             now = time.time()
             db.execute('UPDATE board_bridges SET last_seen=?,status=? WHERE name=?', (now, body.status, board['name']))
-            existing = db.execute('''SELECT j.* FROM bridge_jobs j JOIN matches m ON m.id=j.match_id
-                 WHERE j.board=? AND j.phase!='done' ORDER BY m.id LIMIT 1''', (board['name'],)).fetchone()
+            # Keep old mappings for inspection and late-result validation, but
+            # never let an archived or separately paused tournament own a board
+            # while another tournament is active.
+            existing = db.execute('''SELECT j.* FROM bridge_jobs j
+                 JOIN matches m ON m.id=j.match_id JOIN tournaments t ON t.id=m.tournament_id
+                 WHERE j.board=? AND j.phase!='done' AND t.archived_at IS NULL
+                   AND (t.autodarts_enabled=1 OR NOT EXISTS
+                     (SELECT 1 FROM tournaments WHERE autodarts_enabled=1 AND archived_at IS NULL))
+                 ORDER BY m.id LIMIT 1''', (board['name'],)).fetchone()
             if existing:
                 job = dict(existing)
                 if job['owner'] != body.instance and job['lease_until'] > now:
