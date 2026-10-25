@@ -423,3 +423,41 @@ def test_autodarts_ids_stay_logged_after_tournament_deletion(client):
     assert log[0]['lobby_id']=='confirmed-lobby' and log[0]['autodarts_match_id']=='confirmed-match'
     assert log[0]['tournament_name']=='Integration' and set(log[0]['players'].split(' – '))=={'Alice','Bob'}
     assert 'nicht beendet' in log[0]['note']
+
+
+def test_abort_can_abort_open_autodarts_games_through_portal(client, monkeypatch):
+    from dartabend import portal
+    calls=[]
+    monkeypatch.setattr(portal,'abort_game',lambda board,lobby,match:calls.append((board,lobby,match)) or {'status':'aborted','message':'Match ohne Wertung abgebrochen.'})
+    t=create(client,['Alice','Bob']);headers=pair(client)
+    playing(client,headers,poll(client,headers))
+    r=client.post(f"/api/tournaments/{t['id']}/abort",json={'abort_autodarts':True})
+    assert r.status_code==200 and r.json()['autodarts_abort']==[{'board':'Rot','status':'aborted','message':'Match ohne Wertung abgebrochen.'}]
+    assert calls==[(BOARDS['Rot'],'confirmed-lobby','confirmed-match')]
+    assert client.get('/api/integration/log').json()[0]['event']=='Autodarts abgebrochen'
+
+
+def test_abort_leaves_autodarts_alone_unless_requested(client, monkeypatch):
+    from dartabend import portal
+    monkeypatch.setattr(portal,'abort_game',lambda *a:(_ for _ in ()).throw(AssertionError('must not call portal')))
+    t=create(client,['Alice','Bob']);headers=pair(client)
+    playing(client,headers,poll(client,headers))
+    assert client.post(f"/api/tournaments/{t['id']}/abort").json()['autodarts_abort']==[]
+
+
+def test_portal_abort_game_prefers_lobby_then_match(monkeypatch):
+    from dartabend import portal
+    import io
+    from urllib.error import HTTPError
+    monkeypatch.setenv('DARTPORTAL_URL','http://portal.test')
+    seen=[]
+    def fake(origin,path,body,timeout=5):
+        seen.append((path,body))
+        if 'lobbies' in path:raise HTTPError(origin+path,409,'',{},io.BytesIO(b'{"detail":"Lobby existiert nicht mehr."}'))
+        return {'aborted':body['match_id']}
+    monkeypatch.setattr(portal,'post',fake)
+    assert portal.abort_game(BOARDS['Rot'],'lobby-1',None)['status']=='aborted'
+    assert seen==[('/api/lobbies/lobby-1/abort',{}),(f"/api/boards/{BOARDS['Rot']}/abort",{'match_id':'lobby-1'})]
+    seen.clear()
+    assert portal.abort_game(BOARDS['Rot'],'lobby-1','match-1')['status']=='aborted'
+    assert seen==[(f"/api/boards/{BOARDS['Rot']}/abort",{'match_id':'match-1'})]

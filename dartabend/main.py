@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field, StrictInt, model_validator
 from . import player_profiles, statistics, portal
 from .scheduler import spielplan_erstellen
 from .history_import import import_history
-from .integration import GameSettings, initialize as init_integration, install as install_integration, record_open_jobs
+from .integration import BOARDS, GameSettings, initialize as init_integration, install as install_integration, record, record_open_jobs
 
 STATIC = Path(__file__).parent / 'static'
 DEFAULT_PLAYERS = ('Muli', 'Bruce', 'Ly', 'Schlatho', 'Michel', 'Rote', 'Manuel', 'Swobi')
@@ -299,8 +299,12 @@ def delete_tournament(tournament_id: str):
     return {'deleted': tournament_id}
 
 
+class AbortRequest(BaseModel):
+    abort_autodarts: bool = False
+
+
 @app.post('/api/tournaments/{tournament_id}/abort')
-def abort_tournament(tournament_id: str):
+def abort_tournament(tournament_id: str, body: AbortRequest | None = None):
     with database() as db:
         db.execute('BEGIN IMMEDIATE')
         t = get_tournament(db, tournament_id)
@@ -311,7 +315,18 @@ def abort_tournament(tournament_id: str):
         now = datetime.now(timezone.utc).isoformat()
         record_open_jobs(db, tournament_id, 'Turnier abgebrochen')
         db.execute('UPDATE tournaments SET aborted_at=?,archived_at=?,autodarts_enabled=0 WHERE id=?', (now, now, tournament_id))
-        return detail(db, tournament_id)
+        games = [dict(r) for r in db.execute("""SELECT j.* FROM bridge_jobs j JOIN matches m ON m.id=j.match_id
+            WHERE m.tournament_id=? AND j.phase!='done' AND (j.lobby_id IS NOT NULL OR j.autodarts_match_id IS NOT NULL)""", (tournament_id,))]
+    results = []
+    if body and body.abort_autodarts:
+        # Outside the transaction: the portal call talks to Autodarts and may take seconds.
+        for job in games:
+            outcome = portal.abort_game(BOARDS[job['board']], job['lobby_id'], job['autodarts_match_id'])
+            results.append({'board': job['board'], **outcome})
+            with database() as db:
+                record(db, job, 'Autodarts abgebrochen' if outcome['status'] == 'aborted' else 'Autodarts-Abbruch fehlgeschlagen', outcome['message'])
+    with database() as db:
+        return {**detail(db, tournament_id), 'autodarts_abort': results}
 
 
 player_profiles.install(app, database, DEFAULT_PLAYERS)

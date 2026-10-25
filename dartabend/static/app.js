@@ -252,10 +252,16 @@ main.addEventListener('click',async e=>{
   if(el.matches('[data-finish],[data-reopen],[data-abort]')) {
     const action=el.matches('[data-abort]')?'abort':el.matches('[data-finish]')?'finish':'reopen';
     if(action==='abort'&&!window.confirm('Turnier abbrechen? Die bisherigen Ergebnisse bleiben im Archiv erhalten.'))return;
+    let body;
+    if(action==='abort') {
+      const games=(await api('/api/integration').catch(()=>({jobs:[]}))).jobs.filter(j=>j.tournament_id===state.tournament.id&&(j.lobby_id||j.autodarts_match_id));
+      if(games.length)body={abort_autodarts:window.confirm(`In Autodarts sind noch ${games.length} Lobby/Spiel(e) offen: ${games.map(j=>`${j.board} · Spiel ${j.number}`).join(', ')}.\n\nOK: ebenfalls abbrechen. Es wird nichts gewertet, niemand gibt auf.\nAbbrechen: in Autodarts offen lassen.`)};
+    }
     el.disabled=true;
     try {
-      state.tournament=await api(`/api/tournaments/${state.tournament.id}/${action}`,{method:'POST'});
-      await loadList();renderDetail();toast(action==='abort'?'Turnier abgebrochen und im Archiv gespeichert.':action==='finish'?'Turnier im Archiv gespeichert.':'Turnier wieder geöffnet.');
+      state.tournament=await api(`/api/tournaments/${state.tournament.id}/${action}`,{method:'POST',...(body?{headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{})});
+      const failed=(state.tournament.autodarts_abort||[]).filter(r=>r.status!=='aborted');
+      await loadList();renderDetail();toast(failed.length?'Turnier abgebrochen. Nicht abgebrochen: '+failed.map(r=>`${r.board}: ${r.message}`).join(' · '):action==='abort'?'Turnier abgebrochen und im Archiv gespeichert.'+(body?.abort_autodarts?' Autodarts-Lobbys und -Spiele abgebrochen.':''):action==='finish'?'Turnier im Archiv gespeichert.':'Turnier wieder geöffnet.');
     } catch(error){toast(error.message);el.disabled=false;}
   }
 });
