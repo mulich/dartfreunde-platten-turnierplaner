@@ -365,11 +365,11 @@ def test_userscript_proxy_errors_distinguish_basic_auth_and_board_key():
     code=r'''
     const assert=require('node:assert/strict');
     const {parseResponse}=require(process.argv[1]);
-    const planner='https://turnier.mulich.de/api/bridge/poll';
+    const planner='http://dartturnier.hausi/api/bridge/poll';
     const basic={status:401,responseHeaders:'Content-Type: text/html\r\nWWW-Authenticate: Basic realm="Authorization required"',responseText:'<html><h1>401 Authorization Required</h1></html>'};
     assert.throws(()=>parseResponse(basic,planner),e=>e.status===401 && e.service==='planner' && e.message.includes('Website-Passwortschutz') && e.message.includes('anmelden'));
-    assert.throws(()=>parseResponse(basic,'https://dartportal.mulich.de/api/automation/lobby-recovery'),e=>e.service==='portal' && e.message.startsWith('Accountzentrale:') && e.message.includes('Accountzentrale anmelden') && !e.message.startsWith('Autodarts:'));
-    assert.throws(()=>parseResponse(basic,'http://192.168.178.137:18080/api/automation/lobby-recovery','http://192.168.178.137:18080'),e=>e.service==='portal' && e.message.startsWith('Accountzentrale:'));
+    assert.throws(()=>parseResponse(basic,'http://dartportal.hausi/api/automation/lobby-recovery'),e=>e.service==='portal' && e.message.startsWith('Accountzentrale:') && e.message.includes('Accountzentrale anmelden') && !e.message.startsWith('Autodarts:'));
+    assert.throws(()=>parseResponse(basic,'http://192.168.99.13:18082/api/automation/lobby-recovery','http://192.168.99.13:18082'),e=>e.service==='portal' && e.message.startsWith('Accountzentrale:'));
     assert.throws(()=>parseResponse(basic,'https://api.autodarts.com/gs/v0/lobbies'),e=>e.service==='autodarts' && e.message.includes('Anmeldung') && !e.message.includes('Passwortschutz'));
     assert.throws(()=>parseResponse({status:401,responseText:JSON.stringify({detail:'Board-Schlüssel ungültig.'})},planner),e=>e.service==='planner'&&e.message.includes('Board-Schlüssel ungültig.')&&!e.message.includes('Basic-Auth'));
     assert.throws(()=>parseResponse({...basic,status:200,responseHeaders:''},planner),/HTML-Seite statt JSON/);

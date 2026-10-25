@@ -13,7 +13,7 @@ async function exercise(ambiguous=false,local=false,guests=false,emptyNull=false
   const location={href:'https://play.autodarts.com/',assign:url=>calls.push({navigate:url})};
   function route(r){
     calls.push(r);const url=new URL(r.url), path=url.pathname, body=r.data?JSON.parse(r.data):{};
-    if(url.origin==='https://turnier.mulich.de'){
+    if(url.origin==='http://dartturnier.hausi'){
       assert.equal(r.headers['X-Board-ID'],board);assert.equal(r.headers.Authorization,undefined);assert.equal(r.anonymous,false);
       assert(!JSON.stringify(r).includes(token));
       if(path==='/api/bridge/poll')return {job:done?null:job};

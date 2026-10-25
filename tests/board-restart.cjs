@@ -10,7 +10,7 @@ async function run({foreign=false,busy=false,lost=false}={}) {
   class Clock extends Date {static now(){return clock*1000;}}
   function route(r) {
     const url=new URL(r.url),body=r.data?JSON.parse(r.data):{};calls.push([url.origin,url.pathname,r.method]);
-    if(url.origin==='https://turnier.mulich.de') {
+    if(url.origin==='http://dartturnier.hausi') {
       assert(!JSON.stringify(r).includes(token));
       if(url.pathname==='/api/bridge/poll')return {job:{...job,restart_ready:clock>=job.restart_after}};
       if(url.pathname.endsWith('/state'))return {job};
@@ -22,8 +22,8 @@ async function run({foreign=false,busy=false,lost=false}={}) {
         return {job:{...job,restart_ready:clock>=job.restart_after}};
       }
     }
-    if(url.origin==='https://dartportal.mulich.de') {
-      assert.equal(r.headers.Origin,'https://dartportal.mulich.de');
+    if(url.origin==='http://dartportal.hausi') {
+      assert.equal(r.headers.Origin,'http://dartportal.hausi');
       assert.equal(r.anonymous,false);assert.equal(r.headers.Authorization,undefined);assert(!JSON.stringify(r).includes(token));
       assert.deepEqual(body.user_ids,['alice']);assert.equal(body.lobby_id,'old-lobby');
       portalAttempts++;
