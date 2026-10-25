@@ -8,8 +8,16 @@ function gameSummary(settings) {
 async function integrationApi(path,body) {
   return api(path,{method:'POST',body:JSON.stringify(body)});
 }
+function autodartsLinks(entry) {
+  const link=(path,label)=>`<a href="https://play.autodarts.com/${path}" target="_blank" rel="noopener">${label}</a> · <a href="https://play-v1.autodarts.com/${path}" target="_blank" rel="noopener">klassisch</a>`;
+  return entry.autodarts_match_id?link(`matches/${encodeURIComponent(entry.autodarts_match_id)}`,'Match öffnen'):entry.lobby_id?link(`lobby/${encodeURIComponent(entry.lobby_id)}`,'Lobby öffnen'):'';
+}
+function renderLog(log) {
+  if(!Array.isArray(log)||!log.length)return '<p class="field-hint">Noch keine Einträge.</p>';
+  return `<div class="autodarts-log">${log.map(e=>`<div class="bridge-job"><div><strong>${new Date(e.at*1000).toLocaleString('de-DE')} · ${esc(e.event)}</strong><p>${esc([e.tournament_name,e.board,e.match_number&&'Spiel '+e.match_number,e.players,e.phase,e.note].filter(Boolean).join(' · '))}</p><p class="board-ident">${e.lobby_id?'Lobby '+esc(e.lobby_id):''}${e.autodarts_match_id&&e.autodarts_match_id!==e.lobby_id?' · Match '+esc(e.autodarts_match_id):''}</p>${autodartsLinks(e)}</div></div>`).join('')}</div>`;
+}
 async function renderIntegration() {
-  const data=await api('/api/integration');
+  const [data,log]=await Promise.all([api('/api/integration'),api('/api/integration/log?limit=30')]);
   if(state.page!=='integration')return;
   main.innerHTML=`<div class="page-heading"><div><span class="eyebrow">AUTODARTS</span><h1>Scheiben verbinden</h1></div><button class="button" data-integration-refresh>↻ Aktualisieren</button></div>
   <p class="rule-note">Pro Board-PC das passende Tampermonkey-Script installieren und die geschützte Turnier-Website einmal im selben Browser anmelden. Zugewiesene Accounts müssen im Board-Account als Freunde bestätigt sein; andere Spieler werden als lokale Gäste angelegt. Die Accounts im Portal anmelden und Einladungen automatisch annehmen lassen. Im Turnier anschließend „Autodarts starten“ wählen.</p>
@@ -17,7 +25,8 @@ async function renderIntegration() {
   <p class="field-hint">Je PC nur das Script seiner Scheibe installieren. Das bisherige automatische Script deaktivieren. Vollbild startet beim Match und endet danach automatisch. Falls Chrome den automatischen Einstieg blockiert: unter Windows optional <a href="/static/chrome-autodarts-vollbild.reg" download>Chrome-Freigabe herunterladen</a>. Alternativ auf ⛶ klicken.</p>
   <div class="bridge-grid">${data.boards.map(b=>`<section class="bridge-card"><h3><i class="dot ${boardColor(b.name)}"></i>${esc(b.name)} <span class="badge ${b.online?'active':''}">${b.online?'Online':'Offline'}</span></h3><p class="field-hint">${esc(b.status || 'Script noch nicht verbunden')}</p><p class="board-ident">${esc(b.board_id)}</p></section>`).join('')}</div>
   <h3>Verknüpfte Begegnungen</h3>${data.jobs.length?data.jobs.map(j=>`<div class="bridge-job"><div><strong>${esc(j.board)} · Spiel ${j.number}</strong><p>${esc(({queued:'Vorbereiten',creating:'Lobby-Erstellung',lobby:'Einladungen / Lobby',starting:'Matchstart',playing:'Match läuft',restarting:'Lobby-Neustart'})[j.phase] || j.phase)}${j.error?' · '+esc(j.error):''}</p>${j.autodarts_match_id?`<a href="https://play.autodarts.com/matches/${encodeURIComponent(j.autodarts_match_id)}" target="_blank" rel="noopener">Autodarts-Match öffnen</a>`:j.lobby_id?`<a href="https://play.autodarts.com/lobby/${encodeURIComponent(j.lobby_id)}" target="_blank" rel="noopener">Autodarts-Lobby öffnen</a>`:''}</div><div class="detail-actions">${['lobby','restarting'].includes(j.phase)?`<button class="button small danger" data-restart-lobby="${esc(j.id)}">${j.phase==='restarting'?'Neustart fortsetzen':'Notfall: Lobby neu starten'}</button>`:''}<button class="button small" data-reset-job="${esc(j.id)}">Zuordnung zurücksetzen</button></div></div>`).join(''):'<p class="field-hint">Keine offenen Verknüpfungen.</p>'}
-  <p class="field-hint">Notfall-Neustart: alte Lobby löschen → 2 Sekunden warten → betroffene Accounts zur Startseite → 3 Sekunden warten → neue Lobby und Einladungen. Board-Script: Version 2.4.3. Bei einem Fehler „Neustart fortsetzen“ wählen; die Ursache (z. B. fehlende Anmeldung) zuerst beheben. Accountzentrale auf dem Board-PC einmal anmelden (Tampermonkey-Menü). Laufende Matches können hier nicht neu gestartet werden.</p>
+  <h3>Autodarts-Protokoll</h3><p class="field-hint">Lobby- und Match-IDs der letzten Board-Aufträge. Bleiben auch nach dem Löschen eines Turniers erhalten.</p>${renderLog(log)}
+  <p class="field-hint">Notfall-Neustart: alte Lobby löschen → 2 Sekunden warten → betroffene Accounts zur Startseite → 3 Sekunden warten → neue Lobby und Einladungen. Board-Script: Version 2.4.4. Bei einem Fehler „Neustart fortsetzen“ wählen; die Ursache (z. B. fehlende Anmeldung) zuerst beheben. Accountzentrale auf dem Board-PC einmal anmelden (Tampermonkey-Menü). Laufende Matches können hier nicht neu gestartet werden.</p>
   <p class="field-hint">Bei unklarem Lobby-/Matchstart wird kein zweites Spiel erstellt. Automatik pausieren, bestehende Lobby bzw. Match in Autodarts beenden und erst dann die Zuordnung zurücksetzen. Abbrechen oder Löschen im Planer beendet kein Autodarts-Match.</p>`;
 }
 main.addEventListener('click',async e=>{

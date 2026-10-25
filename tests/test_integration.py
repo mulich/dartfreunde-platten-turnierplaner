@@ -132,8 +132,8 @@ def test_restart_retry_button_remains_available_and_requests_same_job():
       const button={textContent:'Neustart fortsetzen',dataset:{restartLobby:'job-123'},matches:q=>q==='[data-restart-lobby]'};
       await listeners[0]({target:{closest:()=>button}});
       assert.match(confirmations[0],/offenen Neustart-Schritt/);
-      assert.equal(requests[1][0],'/api/integration/jobs/job-123/restart');
-      assert.equal(requests[1][1].method,'POST');
+      assert.equal(requests[2][0],'/api/integration/jobs/job-123/restart');
+      assert.equal(requests[2][1].method,'POST');
       assert.match(messages[0],/offenen Schritt/);
     })().catch(e=>{console.error(e);process.exitCode=1;});
     '''
@@ -408,3 +408,18 @@ def test_board_account_detection_before_automation():
 def test_fixed_board_token_renewal_and_stale_unauthorized_response():
     root=Path(__file__).parents[1]
     subprocess.run(['node','tests/board-session.cjs'],cwd=root,check=True,capture_output=True,text=True)
+
+
+def test_autodarts_ids_stay_logged_after_tournament_deletion(client):
+    t=create(client,['Alice','Bob']);headers=pair(client)
+    job=playing(client,headers,poll(client,headers))
+    assert client.post(f"/api/tournaments/{t['id']}/abort").status_code==200
+    assert client.delete(f"/api/tournaments/{t['id']}").status_code==200
+    log=client.get('/api/integration/log').json()
+    events=[e['event'] for e in log]
+    assert events[:2]==['Turnier gelöscht','Turnier abgebrochen']
+    assert 'Status' in events
+    assert all(e['job_id']==job['id'] for e in log)
+    assert log[0]['lobby_id']=='confirmed-lobby' and log[0]['autodarts_match_id']=='confirmed-match'
+    assert log[0]['tournament_name']=='Integration' and set(log[0]['players'].split(' – '))=={'Alice','Bob'}
+    assert 'nicht beendet' in log[0]['note']

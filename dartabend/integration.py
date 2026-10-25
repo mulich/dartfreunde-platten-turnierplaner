@@ -96,8 +96,29 @@ def initialize(db):
     for name, definition in [('restart_id', 'TEXT'), ('restart_step', 'TEXT'), ('restart_after', 'REAL')]:
         if name not in columns:
             db.execute(f'ALTER TABLE bridge_jobs ADD COLUMN {name} {definition}')
+    # Survives tournament deletion so Autodarts lobby and match IDs stay traceable.
+    db.execute('''CREATE TABLE IF NOT EXISTS autodarts_log (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, at REAL NOT NULL, event TEXT NOT NULL,
+        tournament_id TEXT, tournament_name TEXT, match_number INTEGER, board TEXT,
+        job_id TEXT, phase TEXT, lobby_id TEXT, autodarts_match_id TEXT, players TEXT, note TEXT NOT NULL DEFAULT ''
+    )''')
     for name, ident in BOARDS.items():
         db.execute('INSERT OR IGNORE INTO board_bridges(name,board_id) VALUES(?,?)', (name, ident))
+
+
+def record(db, job, event, note=''):
+    match = db.execute('SELECT * FROM matches WHERE id=?', (job['match_id'],)).fetchone()
+    t = match and db.execute('SELECT name FROM tournaments WHERE id=?', (match['tournament_id'],)).fetchone()
+    db.execute('''INSERT INTO autodarts_log(at,event,tournament_id,tournament_name,match_number,board,job_id,phase,
+                  lobby_id,autodarts_match_id,players,note) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)''',
+               (time.time(), event, match and match['tournament_id'], t and t['name'], match and match['number'],
+                job['board'], job['id'], job['phase'], job['lobby_id'], job['autodarts_match_id'],
+                match and f"{match['player1']} – {match['player2']}", note[:240]))
+
+
+def record_open_jobs(db, tournament_id, event):
+    for job in db.execute("SELECT j.* FROM bridge_jobs j JOIN matches m ON m.id=j.match_id WHERE m.tournament_id=? AND j.phase!='done'", (tournament_id,)).fetchall():
+        record(db, dict(job), event, 'Autodarts-Lobby bzw. -Match wurde dabei nicht beendet.')
 
 
 def install(app, database, get_tournament, detail):
@@ -141,6 +162,11 @@ def install(app, database, get_tournament, detail):
                  m.tournament_id,m.number FROM bridge_jobs j JOIN matches m ON m.id=j.match_id WHERE j.phase!='done' ''')]
             return {'boards': boards, 'jobs': jobs}
 
+    @app.get('/api/integration/log')
+    def integration_log(limit: int = 50):
+        with database() as db:
+            return [dict(r) for r in db.execute('SELECT * FROM autodarts_log ORDER BY id DESC LIMIT ?', (max(1, min(limit, 500)),))]
+
     @app.post('/api/tournaments/{tournament_id}/automation')
     def automation(tournament_id: str, body: Automation):
         with database() as db:
@@ -180,6 +206,7 @@ def install(app, database, get_tournament, detail):
                 raise HTTPException(409, 'Automatik vor dem Zurücksetzen pausieren.')
             if match['score1'] is not None:
                 raise HTTPException(409, 'Ein gespeichertes Ergebnis wird nicht zurückgesetzt.')
+            record(db, dict(job), 'Zuordnung zurückgesetzt')
             db.execute('DELETE FROM bridge_jobs WHERE id=?', (job_id,))
             return {'reset': job_id}
 
@@ -201,6 +228,7 @@ def install(app, database, get_tournament, detail):
                 return {'restarting': job_id, 'resuming': True}
             if job['phase'] != 'lobby' or not job['lobby_id'] or match['score1'] is not None:
                 raise HTTPException(409, 'Nur eine bestätigte, noch nicht gestartete Lobby kann neu gestartet werden.')
+            record(db, dict(job), 'Lobby-Neustart angefordert')
             db.execute("UPDATE bridge_jobs SET phase='restarting',restart_id=?,restart_step='delete',restart_after=0,error='' WHERE id=?", (str(uuid4()), job_id))
             return {'restarting': job_id}
 
@@ -226,6 +254,7 @@ def install(app, database, get_tournament, detail):
                 if time.time() < job['restart_after']:
                     raise HTTPException(409, 'Accountzentrale wird noch vorbereitet.')
                 ident = str(uuid4())
+                record(db, job, 'Lobby neu gestartet', 'Neuer Auftrag '+ident)
                 db.execute('DELETE FROM bridge_jobs WHERE id=?', (job_id,))
                 db.execute('INSERT INTO bridge_jobs(id,match_id,board,owner,lease_until,revision,participants) VALUES(?,?,?,?,?,?,?)',
                            (ident, job['match_id'], job['board'], body.instance, time.time()+75, job['revision'], job['participants']))
@@ -303,6 +332,8 @@ def install(app, database, get_tournament, detail):
                 raise HTTPException(409, 'Bestehende Zuordnung darf nicht überschrieben werden.')
             db.execute('UPDATE bridge_jobs SET phase=?,lobby_id=?,autodarts_match_id=?,user_ids=?,error=? WHERE id=?',
                        (body.phase, lobby_id, match_id, json.dumps(users) if users else None, body.error, job_id))
+            if (body.phase, lobby_id, match_id) != (job['phase'], job['lobby_id'], job['autodarts_match_id']) or body.error and body.error != job['error']:
+                record(db, dict(db.execute('SELECT * FROM bridge_jobs WHERE id=?', (job_id,)).fetchone()), 'Fehler' if body.error else 'Status', body.error)
             return {'job': job_payload(db, dict(db.execute('SELECT * FROM bridge_jobs WHERE id=?', (job_id,)).fetchone()))}
 
     @app.post('/api/bridge/jobs/{job_id}/result')
@@ -326,4 +357,5 @@ def install(app, database, get_tournament, detail):
                 raise HTTPException(422, 'Ergebnis entspricht keinem abgeschlossenen Match mit diesem Leg-Ziel.')
             db.execute('UPDATE matches SET score1=?,score2=?,revision=revision+1 WHERE id=?', (body.score1, body.score2, job['match_id']))
             db.execute("UPDATE bridge_jobs SET phase='done',error='' WHERE id=?", (job_id,))
+            record(db, {**job, 'phase': 'done'}, 'Ergebnis übernommen', f'{body.score1}:{body.score2}')
             return {'saved': True}

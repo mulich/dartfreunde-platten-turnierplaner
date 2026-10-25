@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field, StrictInt, model_validator
 from . import player_profiles, statistics, portal
 from .scheduler import spielplan_erstellen
 from .history_import import import_history
-from .integration import GameSettings, initialize as init_integration, install as install_integration
+from .integration import GameSettings, initialize as init_integration, install as install_integration, record_open_jobs
 
 STATIC = Path(__file__).parent / 'static'
 DEFAULT_PLAYERS = ('Muli', 'Bruce', 'Ly', 'Schlatho', 'Michel', 'Rote', 'Manuel', 'Swobi')
@@ -291,6 +291,7 @@ def delete_tournament(tournament_id: str):
             raise HTTPException(409, 'Nur Turniere im Archiv können gelöscht werden.')
         if t['source_sha256']:
             db.execute('INSERT OR IGNORE INTO deleted_imports(source_sha256) VALUES(?)', (t['source_sha256'],))
+        record_open_jobs(db, tournament_id, 'Turnier gelöscht')
         db.execute('DELETE FROM bridge_jobs WHERE match_id IN (SELECT id FROM matches WHERE tournament_id=?)', (tournament_id,))
         db.execute('DELETE FROM matches WHERE tournament_id=?', (tournament_id,))
         db.execute('DELETE FROM players WHERE tournament_id=?', (tournament_id,))
@@ -308,6 +309,7 @@ def abort_tournament(tournament_id: str):
         if t['archived_at'] or t['finished_at']:
             raise HTTPException(409, 'Nur laufende Turniere können abgebrochen werden.')
         now = datetime.now(timezone.utc).isoformat()
+        record_open_jobs(db, tournament_id, 'Turnier abgebrochen')
         db.execute('UPDATE tournaments SET aborted_at=?,archived_at=?,autodarts_enabled=0 WHERE id=?', (now, now, tournament_id))
         return detail(db, tournament_id)
 
